@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AlertTriangle, Upload, CheckCircle } from 'lucide-react';
-
+import { Reveal } from '@/components/Reveal';
 import { Chatbot } from "@/components/Chatbot";
 
 
@@ -62,9 +62,10 @@ export default function ReportIssue() {
   };
 
   return (
+   
     <div className="flex flex-col min-h-screen bg-[#e8ecf4]">
       <Header />
-      
+       <Reveal>
       <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6">
         
         {/* Main Form Card */}
@@ -178,9 +179,10 @@ export default function ReportIssue() {
 
           </form>
         </div>
+        
 
       </main>
-
+</Reveal>
       <Footer />
 
       {/* Confirmation Modal */}
@@ -212,8 +214,10 @@ export default function ReportIssue() {
             
           </div>
         </div>
+        
       )}
  <Chatbot />
     </div>
+ 
   );
 }

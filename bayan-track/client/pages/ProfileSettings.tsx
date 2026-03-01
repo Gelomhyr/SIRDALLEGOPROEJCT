@@ -1,57 +1,112 @@
 import React, { useState, useEffect } from 'react';
 import { User, Info, History } from 'lucide-react';
 import { Chatbot } from "@/components/Chatbot";
-// TODO: Uncomment these imports in your local environment based on your project structure:
- import { Header } from "@/components/Header";
- import { Footer } from "@/components/Footer";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { Reveal } from "@/components/Reveal";
 
 // --- Mock components for Canvas preview environment to compile successfully ---
 
 // ---------------------------------------------------------------------------
 
 export default function ProfileSettings() {
+  const navigate = useNavigate();
   const [showToast, setShowToast] = useState(false);
   const [localActivity, setLocalActivity] = useState<any[]>([]);
   
   // Form State initialized with placeholder data matching the screenshot
   const [formData, setFormData] = useState({
-    fullName: 'Juan Dela Cruz',
-    email: 'juan@example.com',
-    contactNumber: '0912 345 6789',
-    address: 'Block 1 Lot 2, Purok 3',
+    fullName: '',
+    email: '',
+    contactNumber: '',
+    address: '',
     preferredMethod: 'SMS / Text'
   });
 
   // Simulate loading from local storage on mount
   useEffect(() => {
-    const savedProfile = localStorage.getItem('bayantrack_profile');
-    if (savedProfile) {
-      setFormData(JSON.parse(savedProfile));
-    }
+    const fetchUser = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/');
+        return;
+      }
+
+      try {
+        const res = await axios.get('http://localhost:5000/api/auth/user', {
+          headers: { 'x-auth-token': token }
+        });
+        
+        // Combine names for display
+        const user = res.data;
+        const fullName = `${user.firstName} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName}`;
+        
+        setFormData(prev => ({
+          ...prev,
+          fullName: fullName,
+          email: user.email,
+          contactNumber: user.contactNumber,
+          address: user.address
+        }));
+      } catch (err) {
+        console.error("Failed to fetch profile", err);
+        // If token is invalid, redirect to login
+        if (axios.isAxiosError(err) && err.response?.status === 401) {
+          localStorage.removeItem('token');
+          navigate('/');
+        }
+      }
+    };
+
+    fetchUser();
     
     // Check for any saved local activities (like submitted reports or forms)
     const activities = JSON.parse(localStorage.getItem('bayantrack_contact_messages') || '[]');
     setLocalActivity(activities);
-  }, []);
+  }, [navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Save to local storage
-    localStorage.setItem('bayantrack_profile', JSON.stringify(formData));
+    const token = localStorage.getItem('token');
     
-    // Show success toast
-    setShowToast(true);
-    
-    // Hide toast after 3 seconds
-    setTimeout(() => {
-      setShowToast(false);
-    }, 3000);
+    // Split full name back into parts for the database
+    const nameParts = formData.fullName.trim().split(/\s+/);
+    const firstName = nameParts[0];
+    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+    // Middle name is everything in between
+    const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
+
+    try {
+      await axios.put('http://localhost:5000/api/auth/user', {
+        firstName,
+        middleName,
+        lastName,
+        email: formData.email,
+        contactNumber: formData.contactNumber,
+        address: formData.address
+      }, {
+        headers: { 'x-auth-token': token }
+      });
+
+      // Show success toast
+      setShowToast(true);
+      
+      // Hide toast after 3 seconds
+      setTimeout(() => {
+        setShowToast(false);
+      }, 3000);
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to update profile: " + (err.response?.data?.msg || "Server Error"));
+    }
   };
 
   return (
@@ -66,9 +121,9 @@ export default function ProfileSettings() {
           </div>
         </div>
       )}
-      
+        <Reveal>
       <main className="flex-grow flex items-start justify-center py-10 px-4 sm:px-6">
-        
+      
         {/* Main Card */}
         <div className="bg-white w-full max-w-2xl rounded-xl shadow-sm border border-gray-200 p-6 md:p-10">
           
@@ -201,7 +256,9 @@ export default function ProfileSettings() {
           </div>
 
         </div>
+       
       </main>
+       </Reveal>
  <Chatbot />
       <Footer />
     </div>

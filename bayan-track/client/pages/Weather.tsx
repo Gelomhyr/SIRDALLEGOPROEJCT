@@ -1,6 +1,6 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-
+import { Reveal } from "@/components/Reveal";
 import { Chatbot } from "@/components/Chatbot";
 
 import React from 'react';
@@ -16,7 +16,7 @@ import {
   CloudLightning
 } from 'lucide-react';
 
-const Reveal = ({ children, delay, className }: any) => <div style={{ animationDelay: `${delay || 0}ms` }} className={`animate-fade-in ${className || ''}`}>{children}</div>;
+
 const MOCK_DB = {
   weather: {
     current: {
@@ -87,7 +87,7 @@ export default function Weather() {
                 { icon: Sun, label: 'UV Index', value: MOCK_DB.weather.current.uv },
                 { icon: Thermometer, label: 'Heat Index', value: MOCK_DB.weather.current.heatIndex },
               ].map((m, i) => (
-                <Reveal key={i} delay={i * 50}>
+                <Reveal>
                   <div className="bg-white p-4 rounded-xl shadow-sm flex items-center gap-3">
                      <div className="bg-blue-50 text-blue-600 p-2 rounded-full"><m.icon size={20}/></div>
                      <div>
@@ -99,7 +99,7 @@ export default function Weather() {
               ))}
             </div>
 
-            <Reveal delay={200}>
+            <Reveal >
               <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
                 <h3 className="font-bold text-gray-700 mb-6 border-b pb-2">Hourly Forecast</h3>
                 <div className="flex overflow-x-auto pb-4 gap-8 no-scrollbar">
@@ -115,7 +115,7 @@ export default function Weather() {
             </Reveal>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-               <Reveal className="md:col-span-1" delay={300}>
+               <Reveal>
                  <div className="bg-white rounded-2xl shadow-sm p-6">
                    <h3 className="font-bold text-gray-800 mb-4">7-Day Forecast</h3>
                    <div className="space-y-4">
@@ -131,7 +131,7 @@ export default function Weather() {
                </Reveal>
 
                <div className="md:col-span-2 space-y-6">
-                  <Reveal delay={400}>
+                  <Reveal>
                     <div className="bg-orange-50 border-l-4 border-orange-400 p-6 rounded-r-xl">
                        <h3 className="font-bold text-orange-800 flex items-center gap-2 mb-2"><AlertTriangle size={18}/> Weather Safety Tips</h3>
                        <ul className="list-disc pl-5 space-y-2 text-sm text-orange-900">
@@ -142,7 +142,7 @@ export default function Weather() {
                     </div>
                   </Reveal>
                   
-                  <Reveal delay={500}>
+                  <Reveal>
                     <div className="bg-white p-6 rounded-xl border border-gray-200">
                       <h3 className="font-bold text-[#395886] mb-4">Sun & Moon</h3>
                       <div className="flex justify-between items-center">

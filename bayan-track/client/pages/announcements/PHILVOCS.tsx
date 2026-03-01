@@ -5,12 +5,11 @@ import { Chatbot } from "@/components/Chatbot";
 // TODO: Uncomment these imports in your local environment based on your project structure:
  import { Header } from "@/components/Header";
  import { Footer } from "@/components/Footer";
-// import { Reveal } from "@/components/Reveal"; 
+import { Reveal } from "@/components/Reveal"; 
 // import { FadeIn } from "@/components/FadeIn";
 
 // --- Mock components for Canvas preview environment to compile successfully ---
 
-const Reveal = ({ children, delay }: any) => <div style={{ animationDelay: `${delay || 0}ms` }} className="animate-fade-in h-full">{children}</div>;
 const FadeIn = ({ children }: any) => <div className="animate-fade-in h-full">{children}</div>;
 
 const MOCK_PHIVOLCS = [
@@ -46,7 +45,7 @@ export default function PHIVOLCS() {
            {/* Alerts Grid */}
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
              {MOCK_PHIVOLCS.map((item, idx) => (
-               <Reveal key={item.id} delay={idx * 50}>
+               <Reveal>
                  <div className="bg-white border border-[#D5DEEF] rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col">
                    
                    {/* Type Badge & Date */}

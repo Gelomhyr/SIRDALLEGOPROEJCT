@@ -5,11 +5,11 @@ import { Chatbot } from "@/components/Chatbot";
 // TODO: Uncomment these imports in your local environment based on your project structure:
  import { Header } from "@/components/Header";
  import { Footer } from "@/components/Footer";
-// import { Reveal } from "@/components/Reveal"; 
+import { Reveal } from "@/components/Reveal"; 
 
 // --- Mock components for Canvas preview environment to compile successfully ---
 
-const Reveal = ({ children, delay }: any) => <div style={{ animationDelay: `${delay || 0}ms` }} className="animate-fade-in h-full">{children}</div>;
+
 
 const MOCK_FACT_CHECKS = [
   { id: 101, status: 'FALSE', category: 'Public Safety', title: 'Evacuation order due to gas leak', claim: 'Residents of Purok 3 are ordered to evacuate immediately due to a massive chemical gas leak.', verdict: 'There is NO gas leak in Purok 3. The BFP Bacoor has verified that the smell was from a controlled burning of garbage which has been apprehended.', date: '2026-03-10' },
@@ -130,7 +130,7 @@ export default function FactCheck() {
         {/* Fact Check Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredData.map((item, idx) => (
-            <Reveal key={idx} delay={idx * 50}>
+            <Reveal>
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col h-full hover:shadow-md transition-shadow">
                 
                 {/* Header (Status, Category, Date) */}

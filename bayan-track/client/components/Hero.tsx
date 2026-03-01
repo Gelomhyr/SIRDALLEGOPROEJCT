@@ -30,7 +30,7 @@ export function Hero() {
             <span className="text-white/90">Progressive & Safe</span>
           </h1>
           <div className="absolute top-1/2 left-0 -translate-y-1/2 text-7xl md:text-[120px] font-black text-white/5 whitespace-nowrap pointer-events-none select-none z-0">
-            Barangay Mambog II Civic Center
+           
           </div>
         </div>
 

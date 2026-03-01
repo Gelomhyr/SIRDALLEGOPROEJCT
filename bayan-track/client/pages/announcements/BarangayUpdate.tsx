@@ -5,11 +5,10 @@ import { Chatbot } from "@/components/Chatbot";
 // TODO: Uncomment these imports in your local environment based on your project structure:
  import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-// import { Reveal } from "@/components/Reveal"; 
+import { Reveal } from "@/components/Reveal"; 
 
 // --- Mock components for Canvas preview environment to compile successfully ---
 
-const Reveal = ({ children, delay }: any) => <div style={{ animationDelay: `${delay || 0}ms` }} className="animate-fade-in h-full">{children}</div>;
 
 // Specific mock data tailored for the Barangay Updates view
 const MOCK_DB = {
@@ -126,7 +125,7 @@ export default function BarangayUpdate() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
             {paginated.map((item, idx) => (
-              <Reveal key={item.id} delay={idx * 50}>
+              <Reveal>
                 <div className="bg-white rounded-[14px] shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer h-full flex flex-col group">
                   
                   {/* Top Cover Block (Replaces the placeholder image) */}

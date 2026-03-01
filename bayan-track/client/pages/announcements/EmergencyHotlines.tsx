@@ -4,11 +4,11 @@ import { Chatbot } from "@/components/Chatbot";
 // TODO: Uncomment these imports in your local environment based on your project structure:
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-// import { Reveal } from "@/components/Reveal"; 
+import { Reveal } from "@/components/Reveal"; 
 
 // --- Mock components for Canvas preview environment to compile successfully ---
 
-const Reveal = ({ children, delay }: any) => <div style={{ animationDelay: `${delay || 0}ms` }} className="animate-fade-in h-full">{children}</div>;
+
 
 const HOTLINES_DATA = [
   { 
@@ -102,7 +102,7 @@ export default function EmergencyHotlines() {
         {/* Hotlines Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
           {HOTLINES_DATA.map((hotline, idx) => (
-            <Reveal key={idx} delay={idx * 50}>
+            <Reveal>
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 border-l-[6px] border-l-[#de2a2a] p-6 md:p-8 h-full flex flex-col relative hover:shadow-md transition-shadow">
                 
                 {/* Phone Icon top right */}
@@ -159,7 +159,7 @@ export default function EmergencyHotlines() {
         </div>
 
         {/* Evacuation & Safety Section */}
-        <Reveal delay={200}>
+        <Reveal>
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-[#395886] mb-6">Evacuation & Safety</h2>
             

@@ -1,11 +1,13 @@
 import { Header } from "@/components/Header";
+import { Reveal } from "@/components/Reveal";
+
 import { Footer } from "@/components/Footer";
 import { Chatbot } from "@/components/Chatbot";
+
 
 import React from 'react';
 import { Building2, Info } from 'lucide-react';
 
-const Reveal = ({ children, delay }: any) => <div style={{ animationDelay: `${delay || 0}ms` }} className="animate-fade-in">{children}</div>;
 const MOCK_DB = {
   officials: {
     city: [
@@ -27,18 +29,24 @@ export default function Officials() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      
+     
       <main className="flex-grow">
         <div className="min-h-screen bg-slate-50">
+           <Reveal>
           <div className=" text-blue py-12 md:py-16">
+            
             <div className="container mx-auto px-6 text-center animate-slide-up">
               <h1 className="text-3xl md:text-4xl font-bold mb-2">Barangay Officials Directory</h1>
               <p className="text-blue max-w-2xl mx-auto text-sm md:text-base">Meet the dedicated public servants of Barangay Mambog II, committed to transparency and efficient public service.</p>
+              
             </div>
+            
           </div>
+          </Reveal>
+          
           
           <div className="container mx-auto px-4 md:px-6 py-12 max-w-6xl -mt-8">
-            <Reveal>
+           <Reveal>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-12">
                 {MOCK_DB.officials.city.map((off, i) => (
                   <div key={i} className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-[#638ECB] flex items-center gap-6 hover:translate-y-1 transition-transform">
@@ -51,11 +59,11 @@ export default function Officials() {
                   </div>
                 ))}
               </div>
-            </Reveal>
+        </Reveal>
 
             <div className="flex flex-col lg:flex-row gap-8 mb-16">
               <div className="lg:w-1/4 order-2 lg:order-1">
-                <Reveal delay={100}>
+                <Reveal>
                   <div className="bg-white p-6 rounded-xl border border-[#D5DEEF] shadow-sm sticky top-24">
                     <h3 className="font-bold text-[#395886] mb-4 flex items-center gap-2"><Building2 size={18}/> Governance</h3>
                     <ul className="space-y-4 text-sm text-gray-600">
@@ -77,11 +85,12 @@ export default function Officials() {
                       Data reflects the current term administration. Verified via DILG & Bacoor City Government records.
                     </div>
                   </div>
-                </Reveal>
+                  </Reveal>
+             
               </div>
 
               <div className="lg:w-3/4 order-1 lg:order-2">
-                <Reveal delay={200}>
+           <Reveal>
                   <div className="bg-white rounded-xl shadow-lg border border-[#D5DEEF] overflow-hidden mb-8 md:mb-10 flex flex-col md:flex-row">
                     <div className="md:w-1/3 bg-gray-100 relative h-64 md:h-auto">
                       <img src={MOCK_DB.officials.barangay[0].img} className="w-full h-full object-cover absolute inset-0" alt="Captain" />
@@ -96,9 +105,10 @@ export default function Officials() {
                       </div>
                     </div>
                   </div>
-                </Reveal>
+                  </Reveal>
+          
 
-                <Reveal delay={300}>
+              <Reveal>
                   <h3 className="text-lg md:text-xl font-bold text-[#395886] mb-6 border-b border-[#D5DEEF] pb-2">Sangguniang Barangay Members</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                     {MOCK_DB.officials.barangay.slice(1).map((off, i) => (
@@ -116,7 +126,8 @@ export default function Officials() {
                       </div>
                     ))}
                   </div>
-                </Reveal>
+                  </Reveal>
+           
               </div>
             </div>
           </div>

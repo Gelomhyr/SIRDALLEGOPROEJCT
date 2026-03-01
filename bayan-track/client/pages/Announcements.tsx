@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Shield, AlertTriangle, Calendar, ArrowRight, Activity } from 'lucide-react';
 import { Chatbot } from "@/components/Chatbot";
+import { Reveal } from '@/components/Reveal';
 
 // TODO: Uncomment these imports in your local environment based on your project structure:
  import { Header } from "@/components/Header";
@@ -13,7 +14,7 @@ import { Chatbot } from "@/components/Chatbot";
 
 // --- Mock components for Canvas preview environment to compile successfully ---
 
-const Reveal = ({ children, delay }: any) => <div style={{ animationDelay: `${delay || 0}ms` }} className="animate-fade-in">{children}</div>;
+
 const FadeIn = ({ children }: any) => <div className="animate-fade-in">{children}</div>;
 const EmergencyView = () => <div className="p-12 text-center text-xl font-bold text-red-600 bg-white rounded-xl shadow-sm m-6">Emergency Hotlines View (Mock)</div>;
 const NewsCarousel = () => <div className="bg-slate-200 h-64 rounded-xl mb-12 flex items-center justify-center text-slate-500 font-bold">News Carousel Placeholder</div>;
@@ -100,7 +101,7 @@ export default function Announcements({ slug }: { slug?: string }) {
           </FadeIn>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
              {MOCK_DB.factChecks.map(item => (
-               <Reveal key={item.id}>
+               <Reveal>
                  <div className={`border rounded-xl p-6 flex flex-col sm:flex-row gap-4 shadow-sm hover:shadow-md transition-shadow h-full ${
                     item.status === 'FALSE' ? 'bg-red-50 border-red-200' : 
                     item.status === 'MISLEADING' ? 'bg-orange-50 border-orange-200' : 
@@ -159,7 +160,7 @@ export default function Announcements({ slug }: { slug?: string }) {
            </FadeIn>
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
              {MOCK_DB.phivolcs.map(item => (
-               <Reveal key={item.id}>
+               <Reveal>
                  <div className="bg-white border border-[#D5DEEF] rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col">
                    <div className="flex justify-between items-start mb-4">
                      <div className={`px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm ${
@@ -233,7 +234,7 @@ export default function Announcements({ slug }: { slug?: string }) {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
                 {paginated.map((item, idx) => (
-                    <Reveal key={item.id} delay={idx * 50}>
+                    <Reveal>
                     <div className="bg-white rounded-xl shadow-sm border border-[#D5DEEF] overflow-hidden hover:shadow-xl transition-all group cursor-pointer h-full flex flex-col">
                         <div className="h-48 overflow-hidden relative">
                             <img src={item.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={item.title}/>
@@ -270,7 +271,8 @@ export default function Announcements({ slug }: { slug?: string }) {
 
           {!slug && (
             <div className="w-full md:w-80 shrink-0 space-y-8">
-              <Reveal delay={200}>
+              <Reveal>
+
                 <div className="bg-white p-6 rounded-xl border border-[#D5DEEF] shadow-sm sticky top-24">
                   <h3 className="font-bold text-[#395886] mb-6 flex items-center gap-2 text-lg"><Activity size={20}/> Trending Now</h3>
                   <div className="space-y-6">

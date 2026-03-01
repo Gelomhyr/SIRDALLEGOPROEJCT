@@ -1,12 +1,12 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Chatbot } from "@/components/Chatbot";
+import { Reveal } from "@/components/Reveal";
 
 import React, { useState } from 'react';
 import { CheckCircle, Clock, FileText, ArrowRight } from 'lucide-react';
 
 
-const Reveal = ({ children, delay }: any) => <div style={{ animationDelay: `${delay || 0}ms` }} className="animate-fade-in">{children}</div>;
 const FadeIn = ({ children }: any) => <div className="animate-fade-in">{children}</div>;
 const MOCK_DB = {
   services: [
@@ -34,6 +34,7 @@ export default function Services() {
   const renderContent = () => {
     if (success) {
       return (
+        <Reveal>
         <div className="container mx-auto px-6 py-20 text-center animate-fade-in">
            <div className="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg border-t-4 border-green-500">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600"><CheckCircle size={32} /></div>
@@ -51,6 +52,7 @@ export default function Services() {
             <button onClick={() => { setSuccess(null); setActiveId(null); }} className="text-[#395886] font-bold hover:underline">New Request</button>
           </div>
         </div>
+        </Reveal>
       );
     }
 
@@ -103,6 +105,7 @@ export default function Services() {
     return (
       <div className="container mx-auto px-6 py-12">
         <FadeIn>
+          <Reveal>
           <div className="bg-[#395886] text-white p-10 rounded-2xl mb-12 flex flex-col md:flex-row items-center gap-8 shadow-lg">
             <div className="flex-1">
               <h1 className="text-3xl font-bold mb-4">Online Services Portal</h1>
@@ -131,11 +134,12 @@ export default function Services() {
               </div>
             </div>
           </div>
+          </Reveal>
         </FadeIn>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {MOCK_DB.services.map((s, idx) => (
-            <Reveal key={s.id} delay={idx * 50}>
+          
               <div onClick={() => setActiveId(s.id)} className="bg-white p-6 rounded-xl border border-[#D5DEEF] hover:shadow-xl transition-all cursor-pointer group hover:-translate-y-1 h-full flex flex-col">
                 <div className="w-14 h-14 bg-[#F0F3FA] rounded-full flex items-center justify-center text-[#395886] mb-6 group-hover:bg-[#395886] group-hover:text-white transition-colors">
                   <s.icon size={28} />
@@ -153,7 +157,7 @@ export default function Services() {
                    <span className="text-[#638ECB] flex items-center gap-1 group-hover:gap-2 transition-all">Start Request <ArrowRight size={14}/></span>
                 </div>
               </div>
-            </Reveal>
+
           ))}
         </div>
       </div>

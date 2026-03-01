@@ -7,12 +7,11 @@ import { Chatbot } from "@/components/Chatbot";
 // TODO: Uncomment these imports in your local environment based on your project structure:
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-// import { Reveal } from "@/components/Reveal"; 
+import { Reveal } from "@/components/Reveal"; 
 
 // --- Mock components for Canvas preview environment to compile successfully ---
 
 
-const Reveal = ({ children, delay }: any) => <div style={{ animationDelay: `${delay || 0}ms` }} className="animate-fade-in">{children}</div>;
 
 // Simple inline mock for SuccessModal since it wasn't provided in the snippet
 const SuccessModal = ({ title, body, referenceNo, onClose }: any) => (
@@ -109,7 +108,7 @@ export default function Contact() {
               </Reveal>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Reveal delay={100}>
+                <Reveal>
                   <div className="bg-[#F0F3FA] p-6 rounded-xl border border-[#D5DEEF] hover:border-[#638ECB] transition-colors">
                     <Clock className="text-[#395886] mb-4" size={32}/>
                     <h3 className="font-bold text-gray-800 text-lg mb-2">Office Hours</h3>
@@ -118,7 +117,7 @@ export default function Contact() {
                     <p className="text-xs text-gray-500 mt-2 italic">Best time to visit: 9:00 AM - 11:00 AM</p>
                   </div>
                 </Reveal>
-                <Reveal delay={200}>
+                <Reveal>
                   <div className="bg-[#F0F3FA] p-6 rounded-xl border border-[#D5DEEF] hover:border-[#638ECB] transition-colors">
                     <MapPin className="text-[#395886] mb-4" size={32}/>
                     <h3 className="font-bold text-gray-800 text-lg mb-2">Location</h3>
@@ -129,7 +128,7 @@ export default function Contact() {
                 </Reveal>
               </div>
 
-              <Reveal delay={300}>
+              <Reveal>
                  <h2 className="text-2xl font-bold text-[#395886] mb-6">Department Directory</h2>
                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                    <table className="w-full text-left text-sm">
@@ -153,7 +152,7 @@ export default function Contact() {
             </div>
 
             <div className="lg:col-span-1">
-              <Reveal delay={400}>
+              <Reveal>
                 <div className="bg-white p-8 rounded-xl shadow-lg border border-[#D5DEEF] sticky top-24">
                   <h2 className="text-xl font-bold text-[#395886] mb-6">Send us a Message</h2>
                   <form className="space-y-4" onSubmit={handleSubmit}>
