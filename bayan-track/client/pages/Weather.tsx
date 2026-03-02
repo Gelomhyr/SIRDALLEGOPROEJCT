@@ -50,7 +50,7 @@ export default function Weather() {
       setError("");
       try {
         const API_KEY = "7351848fbe1e2beafdcaa53c4ce57d90"; 
-        const CITY = "Bacoor,PH";
+        const CITY = "Imus,PH";
 
         const currentRes = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${CITY}&units=metric&appid=${API_KEY}`);
         const current = currentRes.data;
@@ -86,6 +86,8 @@ export default function Weather() {
             default: return "Unknown";
           }
         };
+
+       
 
         const generateTips = (condition: string, temp: number, windSpeed: number, aqi: number) => {
           const tips = [];
