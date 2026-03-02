@@ -1,28 +1,22 @@
-import React, { useState } from 'react';
-import { AlertTriangle, Upload, CheckCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AlertTriangle, CheckCircle } from 'lucide-react';
 import { Reveal } from '@/components/Reveal';
 import { Chatbot } from "@/components/Chatbot";
-
-
-// TODO: Uncomment these imports in your local environment based on your project structure:
- import { Header } from "@/components/Header";
- import { Footer } from "@/components/Footer";
-
-// --- Mock components for Canvas preview environment to compile successfully ---
-
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+import { api, authHeaders } from '@/lib/api';
 
 export default function ReportIssue() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [referenceNumber, setReferenceNumber] = useState('');
-  
-  // Form State
+  const [submitProgress, setSubmitProgress] = useState(0);
   const [formData, setFormData] = useState({
     fullName: '',
     contactNumber: '',
     address: '',
     category: '',
-    description: ''
+    description: '',
   });
 
   const categories = [
@@ -31,193 +25,117 @@ export default function ReportIssue() {
     'Streetlight Defect',
     'Noise Complaint',
     'Suspicious Activity',
-    'Stray Animal'
+    'Stray Animal',
   ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    // Simulate API delay
-    setTimeout(() => {
-      const refNo = `BT-RPT-2026-${Math.floor(10000 + Math.random() * 90000)}`;
-      setReferenceNumber(refNo);
-      setIsSubmitting(false);
+    setSubmitProgress(20);
+
+    try {
+      const res = await api.post('/api/reports', formData, { headers: authHeaders() });
+      setReferenceNumber(res.data.referenceNo);
       setIsSuccessModalOpen(true);
-      
-      // Reset form
-      setFormData({
-        fullName: '',
-        contactNumber: '',
-        address: '',
-        category: '',
-        description: ''
-      });
-    }, 1500);
+      setFormData({ fullName: '', contactNumber: '', address: '', category: '', description: '' });
+    } catch (err: any) {
+      alert(err.response?.data?.msg || 'Failed to submit report');
+    } finally {
+      setSubmitProgress(100);
+      setTimeout(() => { setIsSubmitting(false); setSubmitProgress(0); }, 250);
+    }
   };
 
+  useEffect(() => {
+    if (!isSubmitting) return undefined;
+    const t = setInterval(() => setSubmitProgress((p) => (p >= 90 ? p : p + 12)), 220);
+    return () => clearInterval(t);
+  }, [isSubmitting]);
+
   return (
-   
-    <div className="flex flex-col min-h-screen bg-[#e8ecf4]">
+    <div className="flex min-h-screen flex-col bg-[#e8ecf4]">
       <Header />
-       <Reveal>
-      <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6">
-        
-        {/* Main Form Card */}
-        <div className="bg-white w-full max-w-2xl rounded-xl shadow-lg p-6 md:p-10">
-          
-          {/* Header */}
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-14 h-14 bg-[#ffcccc] text-[#b91c1c] rounded-full flex items-center justify-center shrink-0">
-              <AlertTriangle size={32} strokeWidth={2} />
+      <Reveal>
+        <main className="flex flex-grow items-center justify-center px-4 py-12 sm:px-6">
+          <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-lg md:p-10">
+            <div className="mb-8 flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#ffcccc] text-[#b91c1c]">
+                <AlertTriangle size={32} strokeWidth={2} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Report An Issue</h1>
+                <p className="text-sm text-gray-600">Reports are stored in MongoDB and reflected in admin/superadmin.</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 leading-tight">Report An Issue</h1>
-              <p className="text-sm text-gray-600">Your report helps keep Mambog II safe and clean.</p>
-            </div>
+
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              {isSubmitting && <div><p className="mb-1 text-xs text-gray-500">Submitting report... {submitProgress}%</p><div className="h-2 rounded bg-gray-200"><div className="h-2 rounded bg-[#a91e1e] transition-all" style={{ width: `${submitProgress}%` }} /></div></div>}
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-sm font-bold text-gray-900">Full Name</label>
+                  <input required className="w-full rounded-md border border-gray-300 p-3" name="fullName" value={formData.fullName} onChange={handleInputChange} />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-bold text-gray-900">Contact Number</label>
+                  <input required className="w-full rounded-md border border-gray-300 p-3" name="contactNumber" value={formData.contactNumber} onChange={handleInputChange} />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-bold text-gray-900">Complete Address / Purok</label>
+                <input required className="w-full rounded-md border border-gray-300 p-3" name="address" value={formData.address} onChange={handleInputChange} />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-bold text-gray-900">Issue Category</label>
+                <select required className="w-full rounded-md border border-gray-300 p-3" name="category" value={formData.category} onChange={handleInputChange}>
+                  <option value="" disabled>Select Category...</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-bold text-gray-900">Description</label>
+                <textarea required rows={4} className="w-full resize-none rounded-md border border-gray-300 p-3" name="description" value={formData.description} onChange={handleInputChange} />
+              </div>
+
+              <button type="submit" disabled={isSubmitting} className="w-full rounded-md bg-[#a91e1e] py-3.5 text-[15px] font-bold text-white disabled:opacity-70">
+                {isSubmitting ? 'Submitting...' : 'Submit Report'}
+              </button>
+            </form>
           </div>
+        </main>
+      </Reveal>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Full Name */}
-              <div className="space-y-1.5">
-                <label className="block text-sm font-bold text-gray-900">Full Name</label>
-                <input 
-                  required
-                  type="text" 
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#395886] transition-shadow"
-                />
-              </div>
-
-              {/* Contact Number */}
-              <div className="space-y-1.5">
-                <label className="block text-sm font-bold text-gray-900">Contact Number</label>
-                <input 
-                  required
-                  type="text" 
-                  name="contactNumber"
-                  value={formData.contactNumber}
-                  onChange={handleInputChange}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#395886] transition-shadow"
-                />
-              </div>
-            </div>
-
-            {/* Address */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-bold text-gray-900">Complete Address / Purok</label>
-              <input 
-                required
-                type="text" 
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#395886] transition-shadow"
-              />
-            </div>
-
-            {/* Issue Category */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-bold text-gray-900">Issue Category</label>
-              <select 
-                required
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
-                className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#395886] transition-shadow text-gray-700 bg-white"
-              >
-                <option value="" disabled>Select Category...</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-bold text-gray-900">Description</label>
-              <textarea 
-                required
-                name="description"
-                rows={4}
-                value={formData.description}
-                onChange={handleInputChange}
-                placeholder="Describe the issue in details..."
-                className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#395886] transition-shadow resize-none"
-              ></textarea>
-            </div>
-
-            {/* File Upload Area */}
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 transition-colors">
-              <Upload className="text-gray-400 mb-2" size={32} />
-              <p className="text-sm font-bold text-gray-600">Upload Photo Evidence (Required)</p>
-              <p className="text-xs text-gray-400 mt-1">JPG, PNG (Max 5MB)</p>
-            </div>
-
-            <p className="text-[11px] text-gray-500 text-center">
-              Do not upload sensitive personal IDs here. For emergencies, call 911.
-            </p>
-
-            {/* Submit Button */}
-            <button 
-              type="submit" 
-              disabled={isSubmitting}
-              className="w-full bg-[#a91e1e] hover:bg-[#8b1818] text-white font-bold py-3.5 rounded-md transition-colors disabled:opacity-70 disabled:cursor-not-allowed text-[15px]"
-            >
-              {isSubmitting ? 'Submitting...' : 'Submit Report'}
-            </button>
-
-          </form>
-        </div>
-        
-
-      </main>
-</Reveal>
       <Footer />
 
-      {/* Confirmation Modal */}
       {isSuccessModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1e293b]/90 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-[24px] w-full max-w-[400px] shadow-2xl p-8 text-center flex flex-col items-center">
-            
-            <div className="w-16 h-16 bg-[#dcfce7] rounded-full flex items-center justify-center mb-6 text-[#16a34a]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1e293b]/90 p-4 backdrop-blur-sm">
+          <div className="flex w-full max-w-[400px] flex-col items-center rounded-[24px] bg-white p-8 text-center shadow-2xl">
+            <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#dcfce7] text-[#16a34a]">
               <CheckCircle size={32} strokeWidth={2.5} />
             </div>
-            
-            <h2 className="text-2xl font-bold text-[#3b4b72] mb-3">Report Submitted</h2>
-            <p className="text-gray-600 text-[14px] leading-relaxed mb-6 px-2">
-              Your report has been recorded. Please keep this reference number for tracking.
-            </p>
-            
-            {/* Reference Number Box */}
-            <div className="bg-[#e0e7ff] w-full rounded-xl p-5 mb-6">
-              <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2">REFERENCE NUMBER</p>
-              <p className="text-[#3b4b72] text-xl font-bold tracking-wide">{referenceNumber}</p>
+            <h2 className="mb-3 text-2xl font-bold text-[#3b4b72]">Report Submitted</h2>
+            <p className="mb-6 px-2 text-[14px] leading-relaxed text-gray-600">Your report is now saved and visible for admin/superadmin handling.</p>
+            <div className="mb-6 w-full rounded-xl bg-[#e0e7ff] p-5">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-gray-500">REFERENCE NUMBER</p>
+              <p className="text-xl font-bold tracking-wide text-[#3b4b72]">{referenceNumber}</p>
             </div>
-            
-            <button 
-              onClick={() => setIsSuccessModalOpen(false)}
-              className="w-full bg-[#3b4b72] hover:bg-[#2d3a5c] text-white font-bold py-3.5 rounded-xl transition-colors shadow-md"
-            >
+            <button className="w-full rounded-xl bg-[#3b4b72] py-3.5 font-bold text-white" onClick={() => setIsSuccessModalOpen(false)} type="button">
               Close
             </button>
-            
           </div>
         </div>
-        
       )}
- <Chatbot />
+
+      <Chatbot />
     </div>
- 
   );
 }

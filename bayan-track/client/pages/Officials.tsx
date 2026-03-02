@@ -1,133 +1,147 @@
-import { Header } from "@/components/Header";
+﻿import { Header } from "@/components/Header";
 import { Reveal } from "@/components/Reveal";
-
 import { Footer } from "@/components/Footer";
 import { Chatbot } from "@/components/Chatbot";
+import { useEffect, useMemo, useState } from "react";
+import { Building2, Info } from "lucide-react";
+import { api } from "@/lib/api";
 
-
-import React from 'react';
-import { Building2, Info } from 'lucide-react';
-
-const MOCK_DB = {
-  officials: {
-    city: [
-      { name: "City Mayor", role: "City Mayor", desc: "Local Chief Executive of Bacoor City.", img: "https://placehold.co/150x150/e2e8f0/475569?text=Mayor" },
-      { name: "Vice Mayor", role: "City Vice Mayor", desc: "Presiding Officer, Sangguniang Panlungsod.", img: "https://placehold.co/150x150/e2e8f0/475569?text=VM" }
-    ],
-    barangay: [
-      { name: "Hon. Barangay Captain", responsibilities: "Enforces all laws and ordinances which are applicable within the barangay and promotes the general welfare of the community.", img: "https://placehold.co/400x400/e2e8f0/475569?text=Captain" },
-      { name: "Hon. Kagawad 1", role: "Barangay Kagawad", committee: "Committee on Peace and Order", img: "https://placehold.co/150x150/e2e8f0/475569?text=Kagawad" },
-      { name: "Hon. Kagawad 2", role: "Barangay Kagawad", committee: "Committee on Health & Sanitation", img: "https://placehold.co/150x150/e2e8f0/475569?text=Kagawad" },
-      { name: "Hon. Kagawad 3", role: "Barangay Kagawad", committee: "Committee on Public Works", img: "https://placehold.co/150x150/e2e8f0/475569?text=Kagawad" },
-      { name: "Hon. Kagawad 4", role: "Barangay Kagawad", committee: "Committee on Public Works", img: "https://placehold.co/150x150/e2e8f0/475569?text=Kagawad" }
-    ]
-  }
+type Official = {
+  _id: string;
+  name: string;
+  role: string;
+  level: "city" | "barangay";
+  rankOrder: number;
+  committee?: string;
+  description?: string;
+  image?: string;
 };
-// ---------------------------------------------------------------------------
 
 export default function Officials() {
+  const [officials, setOfficials] = useState<Official[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await api.get("/api/officials");
+        setOfficials(res.data || []);
+      } catch (err) {
+        console.error("Failed to fetch officials", err);
+      }
+    };
+
+    load();
+  }, []);
+
+  const cityOfficials = useMemo(() => officials.filter((o) => o.level === "city"), [officials]);
+  const barangayOfficials = useMemo(() => officials.filter((o) => o.level === "barangay"), [officials]);
+
+  const captain = barangayOfficials[0];
+  const kagawads = barangayOfficials.slice(1);
+
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <Header />
-     
+
       <main className="flex-grow">
         <div className="min-h-screen bg-slate-50">
-           <Reveal>
-          <div className=" text-blue py-12 md:py-16">
-            
-            <div className="container mx-auto px-6 text-center animate-slide-up">
-              <h1 className="text-3xl md:text-4xl font-bold mb-2">Barangay Officials Directory</h1>
-              <p className="text-blue max-w-2xl mx-auto text-sm md:text-base">Meet the dedicated public servants of Barangay Mambog II, committed to transparency and efficient public service.</p>
-              
+          <Reveal>
+            <div className="py-12 md:py-16">
+              <div className="container mx-auto px-6 text-center animate-slide-up">
+                <h1 className="mb-2 text-3xl font-bold md:text-4xl">Barangay Officials Directory</h1>
+                <p className="mx-auto max-w-2xl text-sm text-blue md:text-base">
+                  Meet the dedicated public servants of Barangay Mambog II, committed to transparency and efficient public service.
+                </p>
+              </div>
             </div>
-            
-          </div>
           </Reveal>
-          
-          
-          <div className="container mx-auto px-4 md:px-6 py-12 max-w-6xl -mt-8">
-           <Reveal>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-12">
-                {MOCK_DB.officials.city.map((off, i) => (
-                  <div key={i} className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-[#638ECB] flex items-center gap-6 hover:translate-y-1 transition-transform">
-                    <img src={off.img} className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-2 border-gray-100" alt={off.name} />
+
+          <div className="container mx-auto -mt-8 max-w-6xl px-4 py-12 md:px-6">
+            <Reveal>
+              <div className="mb-12 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+                {cityOfficials.map((off) => (
+                  <div key={off._id} className="flex items-center gap-6 rounded-xl border-l-4 border-[#638ECB] bg-white p-6 shadow-lg transition-transform hover:translate-y-1">
+                    <img
+                      src={off.image || "https://placehold.co/150x150/e2e8f0/475569?text=Official"}
+                      className="h-20 w-20 rounded-full border-2 border-gray-100 object-cover md:h-24 md:w-24"
+                      alt={off.name}
+                    />
                     <div>
-                      <h3 className="text-lg md:text-xl font-bold text-[#395886]">{off.name}</h3>
-                      <p className="text-xs md:text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">{off.role}</p>
-                      <p className="text-[10px] md:text-xs text-gray-400">{off.desc}</p>
+                      <h3 className="text-lg font-bold text-[#395886] md:text-xl">{off.name}</h3>
+                      <p className="mb-1 text-xs font-bold uppercase tracking-wider text-gray-500 md:text-sm">{off.role}</p>
+                      <p className="text-[10px] text-gray-400 md:text-xs">{off.description || "City government official."}</p>
                     </div>
                   </div>
                 ))}
               </div>
-        </Reveal>
+            </Reveal>
 
-            <div className="flex flex-col lg:flex-row gap-8 mb-16">
-              <div className="lg:w-1/4 order-2 lg:order-1">
+            <div className="mb-16 flex flex-col gap-8 lg:flex-row">
+              <div className="order-2 lg:order-1 lg:w-1/4">
                 <Reveal>
-                  <div className="bg-white p-6 rounded-xl border border-[#D5DEEF] shadow-sm sticky top-24">
-                    <h3 className="font-bold text-[#395886] mb-4 flex items-center gap-2"><Building2 size={18}/> Governance</h3>
+                  <div className="sticky top-24 rounded-xl border border-[#D5DEEF] bg-white p-6 shadow-sm">
+                    <h3 className="mb-4 flex items-center gap-2 font-bold text-[#395886]"><Building2 size={18} /> Governance</h3>
                     <ul className="space-y-4 text-sm text-gray-600">
                       <li className="flex gap-2">
-                        <div className="min-w-[6px] h-[6px] rounded-full bg-[#638ECB] mt-1.5"></div>
-                        <span><strong>Sangguniang Barangay:</strong> The legislative body composed of the Punong Barangay and 7 Kagawads.</span>
+                        <div className="mt-1.5 h-[6px] min-w-[6px] rounded-full bg-[#638ECB]" />
+                        <span><strong>Sangguniang Barangay:</strong> The legislative body composed of the Punong Barangay and barangay council members.</span>
                       </li>
                       <li className="flex gap-2">
-                        <div className="min-w-[6px] h-[6px] rounded-full bg-[#638ECB] mt-1.5"></div>
+                        <div className="mt-1.5 h-[6px] min-w-[6px] rounded-full bg-[#638ECB]" />
                         <span><strong>SK Council:</strong> Represents the youth, led by the SK Chairperson.</span>
                       </li>
                       <li className="flex gap-2">
-                        <div className="min-w-[6px] h-[6px] rounded-full bg-[#638ECB] mt-1.5"></div>
+                        <div className="mt-1.5 h-[6px] min-w-[6px] rounded-full bg-[#638ECB]" />
                         <span><strong>City Coordination:</strong> Direct alignment with Bacoor City Hall for major projects.</span>
                       </li>
                     </ul>
-                    <div className="mt-6 pt-6 border-t border-gray-100 text-xs text-gray-400">
-                      <p className="font-bold mb-1 flex items-center gap-1"><Info size={12}/> Source Note</p>
-                      Data reflects the current term administration. Verified via DILG & Bacoor City Government records.
+                    <div className="mt-6 border-t border-gray-100 pt-6 text-xs text-gray-400">
+                      <p className="mb-1 flex items-center gap-1 font-bold"><Info size={12} /> Source Note</p>
+                      Data reflects active officials from the barangay database.
                     </div>
                   </div>
-                  </Reveal>
-             
+                </Reveal>
               </div>
 
-              <div className="lg:w-3/4 order-1 lg:order-2">
-           <Reveal>
-                  <div className="bg-white rounded-xl shadow-lg border border-[#D5DEEF] overflow-hidden mb-8 md:mb-10 flex flex-col md:flex-row">
-                    <div className="md:w-1/3 bg-gray-100 relative h-64 md:h-auto">
-                      <img src={MOCK_DB.officials.barangay[0].img} className="w-full h-full object-cover absolute inset-0" alt="Captain" />
-                    </div>
-                    <div className="md:w-2/3 p-6 md:p-8 flex flex-col justify-center">
-                      <span className="text-[#638ECB] font-bold uppercase tracking-widest text-xs mb-1">Punong Barangay</span>
-                      <h2 className="text-2xl md:text-3xl font-bold text-[#395886] mb-3">{MOCK_DB.officials.barangay[0].name}</h2>
-                      <p className="text-gray-600 text-sm leading-relaxed mb-4">{MOCK_DB.officials.barangay[0].responsibilities}</p>
-                      <div className="flex flex-wrap gap-2">
-                        <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full">Executive</span>
-                        <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full">Presiding Officer</span>
+              <div className="order-1 lg:order-2 lg:w-3/4">
+                {captain && (
+                  <Reveal>
+                    <div className="mb-8 flex flex-col overflow-hidden rounded-xl border border-[#D5DEEF] bg-white shadow-lg md:mb-10 md:flex-row">
+                      <div className="relative h-64 bg-gray-100 md:h-auto md:w-1/3">
+                        <img src={captain.image || "https://placehold.co/400x400/e2e8f0/475569?text=Captain"} className="absolute inset-0 h-full w-full object-cover" alt="Captain" />
+                      </div>
+                      <div className="flex flex-col justify-center p-6 md:w-2/3 md:p-8">
+                        <span className="mb-1 text-xs font-bold uppercase tracking-widest text-[#638ECB]">Punong Barangay</span>
+                        <h2 className="mb-3 text-2xl font-bold text-[#395886] md:text-3xl">{captain.name}</h2>
+                        <p className="mb-4 text-sm leading-relaxed text-gray-600">{captain.description || "Leads governance and local policy implementation."}</p>
+                        <div className="flex flex-wrap gap-2">
+                          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">Executive</span>
+                          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">Presiding Officer</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
                   </Reveal>
-          
+                )}
 
-              <Reveal>
-                  <h3 className="text-lg md:text-xl font-bold text-[#395886] mb-6 border-b border-[#D5DEEF] pb-2">Sangguniang Barangay Members</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                    {MOCK_DB.officials.barangay.slice(1).map((off, i) => (
-                      <div key={i} className="bg-white p-5 rounded-xl border border-[#D5DEEF] hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group">
-                        <div className="flex items-center gap-4 mb-4">
-                          <img src={off.img} className="w-16 h-16 rounded-full object-cover border-2 border-gray-100 group-hover:border-[#638ECB] transition-colors" alt={off.name} />
+                <Reveal>
+                  <h3 className="mb-6 border-b border-[#D5DEEF] pb-2 text-lg font-bold text-[#395886] md:text-xl">Sangguniang Barangay Members</h3>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
+                    {kagawads.map((off) => (
+                      <div key={off._id} className="group rounded-xl border border-[#D5DEEF] bg-white p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+                        <div className="mb-4 flex items-center gap-4">
+                          <img src={off.image || "https://placehold.co/150x150/e2e8f0/475569?text=Official"} className="h-16 w-16 rounded-full border-2 border-gray-100 object-cover transition-colors group-hover:border-[#638ECB]" alt={off.name} />
                           <div>
-                            <h4 className="font-bold text-[#395886] text-sm md:text-md leading-tight">{off.name}</h4>
-                            <p className="text-xs text-gray-400 uppercase font-bold">{off.role}</p>
+                            <h4 className="text-sm font-bold leading-tight text-[#395886] md:text-md">{off.name}</h4>
+                            <p className="text-xs font-bold uppercase text-gray-400">{off.role}</p>
                           </div>
                         </div>
-                        <div className="px-3 py-1.5 bg-[#F0F3FA] rounded text-xs font-medium text-[#395886] inline-block w-full text-center">
-                          {off.committee}
+                        <div className="w-full rounded bg-[#F0F3FA] px-3 py-1.5 text-center text-xs font-medium text-[#395886]">
+                          {off.committee || "Barangay Committee"}
                         </div>
                       </div>
                     ))}
                   </div>
-                  </Reveal>
-           
+                </Reveal>
               </div>
             </div>
           </div>
@@ -135,9 +149,7 @@ export default function Officials() {
       </main>
 
       <Footer />
-           <Chatbot />
-
+      <Chatbot />
     </div>
-    
   );
 }

@@ -1,254 +1,301 @@
-import { Header } from "@/components/Header";
+﻿import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Chatbot } from "@/components/Chatbot";
 import { Reveal } from "@/components/Reveal";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowRight, CheckCircle, Clock, FileText, History, Search, X } from "lucide-react";
+import { api, authHeaders } from "@/lib/api";
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Clock, FileText, ArrowRight, Search, History, X } from 'lucide-react';
-
-
-const FadeIn = ({ children }: any) => <div className="animate-fade-in">{children}</div>;
-const MOCK_DB = {
-  services: [
-    { id: 1, title: 'Barangay Clearance', desc: 'Official document certifying good moral character and residency.', usage: 'Employment, Bank Accounts', requirements: ['Valid ID', 'Recent Cedula'], time: '15 Mins', icon: FileText },
-    { id: 2, title: 'Certificate of Indigency', desc: 'Certification of financial status for assistance programs.', usage: 'Medical Assistance, Scholarships', requirements: ['Valid ID', 'Purok Leader Endorsement'], time: '15 Mins', icon: FileText },
-    { id: 3, title: 'Business Clearance', desc: 'Clearance required for operating a business within the barangay.', usage: 'Mayor\'s Permit, Business Renewal', requirements: ['DTI/SEC Registration', 'Contract of Lease'], time: '30 Mins', icon: FileText }
-  ]
+type ServiceCatalog = {
+  code: string;
+  title: string;
+  desc: string;
+  usage: string;
+  requirements: string[];
+  time: string;
 };
-// ---------------------------------------------------------------------------
+
+type ServiceRequest = {
+  _id: string;
+  referenceNo: string;
+  serviceType: string;
+  status: string;
+  createdAt: string;
+};
+
+const REQUIRED_SERVICES: ServiceCatalog[] = [
+  {
+    code: "barangay-clearance",
+    title: "Barangay Clearance",
+    desc: "Official document certifying good moral character and residency.",
+    usage: "Employment, Bank Accounts",
+    requirements: ["Valid ID", "Recent Cedula"],
+    time: "15 Mins",
+  },
+  {
+    code: "certificate-of-indigency",
+    title: "Certificate of Indigency",
+    desc: "Certification of financial status for assistance programs.",
+    usage: "Medical Assistance, Scholarships",
+    requirements: ["Valid ID", "Purok Leader Endorsement"],
+    time: "15 Mins",
+  },
+  {
+    code: "barangay-id",
+    title: "Barangay ID",
+    desc: "Identification card for verified barangay residents.",
+    usage: "Barangay Transactions, Identity Verification",
+    requirements: ["Valid ID", "Proof of Residency", "2x2 Photo"],
+    time: "20 Mins",
+  },
+];
+
+const iconMap: Record<string, typeof FileText> = {
+  "barangay-clearance": FileText,
+  "certificate-of-indigency": FileText,
+  "barangay-id": FileText,
+};
 
 export default function Services() {
-  const navigate = useNavigate();
-  const [activeId, setActiveId] = useState<number | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [services, setServices] = useState<ServiceCatalog[]>([]);
+  const [history, setHistory] = useState<ServiceRequest[]>([]);
+  const [activeCode, setActiveCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [successRef, setSuccessRef] = useState<string | null>(null);
   const [showTrackModal, setShowTrackModal] = useState(false);
+  const [showRequestModal, setShowRequestModal] = useState(false);
   const [trackRef, setTrackRef] = useState("");
+  const [tracked, setTracked] = useState<ServiceRequest | null>(null);
+  const [formData, setFormData] = useState({ fullName: "", contactNumber: "", address: "", purpose: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState(0);
+  const [isTracking, setIsTracking] = useState(false);
+  const [trackProgress, setTrackProgress] = useState(0);
 
-  const activeService = MOCK_DB.services.find(s => s.id === activeId);
+  const activeService = useMemo(() => services.find((s) => s.code === activeCode), [activeCode, services]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setTimeout(() => {
-      setSuccess(`BT-SVC-2026-${Math.floor(Math.random()*10000)}`);
-    }, 1500);
-  };
-
-  const handleTrackRequest = () => {
-    setShowTrackModal(true);
-  };
-
-  const handleTrackSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setShowTrackModal(false);
-    alert(`Status for ${trackRef}: In Progress (Mock Status)`);
-    setTrackRef("");
-  };
-
-  // Helper function to render the correct view state while keeping Header/Footer intact
-  const renderContent = () => {
-    if (success) {
-      return (
-        <Reveal>
-        <div className="container mx-auto px-6 py-20 text-center animate-fade-in">
-           <div className="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg border-t-4 border-green-500">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600"><CheckCircle size={32} /></div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Request Submitted!</h2>
-            <p className="text-gray-500 mb-4">Please save your reference number for tracking.</p>
-            <div className="bg-gray-100 p-4 rounded-lg font-mono text-xl font-bold text-[#395886] tracking-widest mb-6">{success}</div>
-            <div className="text-sm text-gray-500 mb-6 bg-blue-50 p-4 rounded text-left">
-              <strong>Next Steps:</strong>
-              <ul className="list-decimal pl-4 mt-2 space-y-1 text-xs">
-                <li>Wait for SMS confirmation (within 24 hours).</li>
-                <li>Prepare your requirements.</li>
-                <li>Visit Barangay Hall with your ID and payment.</li>
-              </ul>
-            </div>
-            <button onClick={() => { setSuccess(null); setActiveId(null); }} className="text-[#395886] font-bold hover:underline">New Request</button>
-          </div>
-        </div>
-        </Reveal>
-      );
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [catalogRes, historyRes] = await Promise.all([
+        api.get("/api/services/catalog"),
+        api.get("/api/services/requests/me", { headers: authHeaders() }),
+      ]);
+      const incoming = Array.isArray(catalogRes.data) ? catalogRes.data : [];
+      const byCode = new Map(incoming.map((item: ServiceCatalog) => [item.code, item]));
+      setServices(REQUIRED_SERVICES.map((svc) => byCode.get(svc.code) || svc));
+      setHistory(historyRes.data || []);
+    } catch (err) {
+      console.error("Failed to load services data", err);
+    } finally {
+      setLoading(false);
     }
-
-    if (activeService) {
-      return (
-        <div className="container mx-auto px-6 py-12 animate-fade-in bg-slate-50 min-h-screen">
-          <button onClick={() => setActiveId(null)} className="text-gray-400 hover:text-[#395886] mb-6 flex items-center gap-2 text-sm font-bold">← Back to Services</button>
-          <div className="flex flex-col lg:flex-row gap-8">
-            <div className="flex-1 bg-white p-8 rounded-xl shadow-sm border border-[#D5DEEF]">
-              <h1 className="text-2xl font-bold text-[#395886] mb-2">{activeService.title} Request</h1>
-              <p className="text-gray-500 mb-6 text-sm">{activeService.desc}</p>
-              <div className="bg-blue-50 p-4 rounded-lg mb-6 text-sm text-blue-800 border border-blue-100">
-                <strong>Note:</strong> This certificate is commonly used for: {activeService.usage}.
-              </div>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <input required type="text" placeholder="Full Name" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#638ECB] outline-none"/>
-                <input required type="text" placeholder="Address in Mambog II" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#638ECB] outline-none"/>
-                <select className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#638ECB] outline-none text-gray-700">
-                  <option value="">Purpose of Request...</option>
-                  <option value="employment">Employment</option>
-                  <option value="school">School Requirement</option>
-                  <option value="business">Business Requirement</option>
-                  <option value="other">Other</option>
-                </select>
-                <button type="submit" className="w-full bg-[#395886] text-white font-bold py-3 rounded-lg hover:bg-[#2c456b] transition-colors mt-4">Submit Request</button>
-              </form>
-            </div>
-            <div className="w-full lg:w-80 space-y-6">
-              <div className="bg-white p-6 rounded-xl border border-[#D5DEEF] shadow-sm">
-                <h3 className="font-bold text-[#395886] mb-4">Requirements Checklist</h3>
-                <ul className="space-y-3 text-sm text-gray-700">
-                  {activeService.requirements.map((r, i) => (
-                    <li key={i} className="flex gap-2 items-start">
-                      <CheckCircle size={16} className="text-[#638ECB] shrink-0 mt-0.5"/> 
-                      <span className="leading-snug">{r}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="bg-white p-6 rounded-xl border border-[#D5DEEF] shadow-sm">
-                <h3 className="font-bold text-gray-700 mb-2">Processing Time</h3>
-                <p className="text-2xl font-bold text-[#395886]">{activeService.time}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="container mx-auto px-6 py-12">
-        <FadeIn>
-          <Reveal>
-          <div className="bg-[#395886] text-white p-10 rounded-2xl mb-12 flex flex-col md:flex-row items-center gap-8 shadow-lg">
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold mb-4">Online Services Portal</h1>
-              <p className="text-blue-100 text-lg mb-6 max-w-2xl">Skip the line! Request your certificates online. Ensure your profile information matches your valid IDs.</p>
-              <div className="grid grid-cols-2 gap-4 max-w-lg">
-                 <div className="flex items-center gap-2 text-sm bg-white/10 p-2 rounded font-medium"><CheckCircle size={16}/> Valid ID Required</div>
-                 <div className="flex items-center gap-2 text-sm bg-white/10 p-2 rounded font-medium"><CheckCircle size={16}/> Correct Address</div>
-                 <div className="flex items-center gap-2 text-sm bg-white/10 p-2 rounded font-medium"><CheckCircle size={16}/> Privacy Protected</div>
-                 <div className="flex items-center gap-2 text-sm bg-white/10 p-2 rounded font-medium"><CheckCircle size={16}/> Trackable Requests</div>
-              </div>
-            </div>
-            <div className="flex flex-col gap-4 text-sm font-bold bg-white/5 p-6 rounded-xl border border-white/10 min-w-[250px]">
-              <div className="flex items-center gap-3">
-                <Clock size={24} className="text-[#638ECB]"/> 
-                <div>
-                  <div className="uppercase text-xs text-blue-200">Office Hours</div>
-                  <div>Mon - Fri, 8AM - 5PM</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <FileText size={24} className="text-[#638ECB]"/> 
-                <div>
-                  <div className="uppercase text-xs text-blue-200">Application</div>
-                  <div>No Cut-off Time</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          </Reveal>
-        </FadeIn>
-
-        {/* Dual-Card Layout for Tracking & History */}
-        <Reveal>
-          <div className="bg-[#F4F7FC] p-6 rounded-2xl mb-12">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Card 1: Track Your Request */}
-              <div className="bg-white rounded-[16px] shadow-sm p-6 flex flex-col items-start">
-                <div className="bg-blue-50 rounded-[12px] p-3 mb-4">
-                  <Search className="text-[#1e3a8a]" size={24} />
-                </div>
-                <h3 className="text-[#1e3a8a] font-bold text-[20px] mb-2">Track Your Request</h3>
-                <p className="text-slate-500 text-[14px] mb-6">
-                  Have a reference number? Check the status of your application.
-                </p>
-                <button onClick={handleTrackRequest} className="mt-auto border border-gray-200 text-[#1e3a8a] font-semibold rounded-lg px-6 py-2 hover:bg-gray-50 transition-colors">
-                  Track Now
-                </button>
-              </div>
-
-              {/* Card 2: Request History */}
-              <div className="bg-white rounded-[16px] shadow-sm p-6 flex flex-col items-start">
-                <div className="bg-blue-50 rounded-[12px] p-3 mb-4">
-                  <History className="text-[#1e3a8a]" size={24} />
-                </div>
-                <h3 className="text-[#1e3a8a] font-bold text-[20px] mb-2">Request History</h3>
-                <p className="text-slate-500 text-[14px] mb-6">
-                  View your previous requests and downloaded certificates.
-                </p>
-                <button onClick={() => navigate('/profile')} className="mt-auto border border-gray-200 text-[#1e3a8a] font-semibold rounded-lg px-6 py-2 hover:bg-gray-50 transition-colors">
-                  View History
-                </button>
-              </div>
-
-            </div>
-          </div>
-        </Reveal>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {MOCK_DB.services.map((s, idx) => (
-          
-              <div onClick={() => setActiveId(s.id)} className="bg-white p-6 rounded-xl border border-[#D5DEEF] hover:shadow-xl transition-all cursor-pointer group hover:-translate-y-1 h-full flex flex-col">
-                <div className="w-14 h-14 bg-[#F0F3FA] rounded-full flex items-center justify-center text-[#395886] mb-6 group-hover:bg-[#395886] group-hover:text-white transition-colors">
-                  <s.icon size={28} />
-                </div>
-                <h3 className="font-bold text-xl text-[#395886] mb-2">{s.title}</h3>
-                <p className="text-sm text-gray-500 mb-6 leading-relaxed flex-1">{s.desc}</p>
-                
-                <div className="bg-gray-50 p-3 rounded-lg mb-4 text-xs space-y-1">
-                   <div className="font-bold text-gray-700">Commonly used for:</div>
-                   <div className="text-gray-600">{s.usage}</div>
-                </div>
-
-                <div className="pt-4 border-t border-gray-100 flex justify-between items-center text-xs font-bold text-gray-400">
-                   <span className="flex items-center gap-1"><Clock size={12}/> {s.time}</span>
-                   <span className="text-[#638ECB] flex items-center gap-1 group-hover:gap-2 transition-all">Start Request <ArrowRight size={14}/></span>
-                </div>
-              </div>
-
-          ))}
-        </div>
-
-        {/* Track Request Modal */}
-        {showTrackModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in px-4">
-            <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md relative">
-              <button onClick={() => setShowTrackModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-                <X size={24} />
-              </button>
-              <h3 className="text-xl font-bold text-[#395886] mb-4">Track Request</h3>
-              <form onSubmit={handleTrackSubmit}>
-                <input
-                  type="text"
-                  placeholder="Enter Reference Number (e.g., BT-SVC-2026-1234)"
-                  value={trackRef}
-                  onChange={(e) => setTrackRef(e.target.value)}
-                  className="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-[#638ECB] outline-none"
-                  required
-                />
-                <button type="submit" className="w-full bg-[#395886] text-white font-bold py-3 rounded-lg hover:bg-[#2c456b] transition-colors">
-                  Check Status
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
-      </div>
-    );
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const submitRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeCode) return;
+    setIsSubmitting(true);
+    setSubmitProgress(25);
+
+    try {
+      const res = await api.post(
+        "/api/services/requests",
+        {
+          serviceType: activeCode,
+          fullName: formData.fullName,
+          contactNumber: formData.contactNumber,
+          address: formData.address,
+          purpose: formData.purpose,
+        },
+        { headers: authHeaders() },
+      );
+
+      setSuccessRef(res.data.referenceNo);
+      setActiveCode(null);
+      setShowRequestModal(false);
+      setFormData({ fullName: "", contactNumber: "", address: "", purpose: "" });
+      await loadData();
+    } catch (err: any) {
+      alert(err.response?.data?.msg || "Failed to submit request");
+    } finally {
+      setSubmitProgress(100);
+      setTimeout(() => { setIsSubmitting(false); setSubmitProgress(0); }, 300);
+    }
+  };
+
+  const trackRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsTracking(true);
+    setTrackProgress(30);
+    try {
+      const res = await api.get(`/api/services/requests/track/${trackRef}`, { headers: authHeaders() });
+      setTracked(res.data);
+      setTrackRef("");
+    } catch (err: any) {
+      alert(err.response?.data?.msg || "Request not found");
+    } finally {
+      setTrackProgress(100);
+      setTimeout(() => { setIsTracking(false); setTrackProgress(0); }, 250);
+    }
+  };
+
+  useEffect(() => {
+    if (!isSubmitting) return;
+    const t = setInterval(() => setSubmitProgress((p) => (p >= 90 ? p : p + 8)), 220);
+    return () => clearInterval(t);
+  }, [isSubmitting]);
+
+  useEffect(() => {
+    if (!isTracking) return;
+    const t = setInterval(() => setTrackProgress((p) => (p >= 90 ? p : p + 12)), 220);
+    return () => clearInterval(t);
+  }, [isTracking]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-slate-50">
       <Header />
       <main className="flex-grow">
-        {renderContent()}
+        <div className="container mx-auto px-6 py-12">
+          <Reveal>
+            <div className="mb-10 rounded-2xl bg-[#395886] p-10 text-white">
+              <h1 className="text-3xl font-bold">Online Services Portal</h1>
+              <p className="mt-2 text-blue-100">Certificate of Indigency, Barangay Clearance, and Barangay ID requests with real database tracking.</p>
+            </div>
+          </Reveal>
+
+          {loading && <div className="mb-6 rounded-xl border bg-white p-4 text-sm text-slate-500">Loading services...</div>}
+
+          {successRef && (
+            <div className="mb-8 rounded-xl border border-emerald-200 bg-emerald-50 p-6">
+              <h2 className="text-lg font-bold text-emerald-800">Request submitted</h2>
+              <p className="mt-1 text-sm text-emerald-700">Reference Number: <span className="font-bold">{successRef}</span></p>
+            </div>
+          )}
+
+          <div className="mb-8 grid gap-6 md:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 bg-white p-6">
+              <div className="mb-3 inline-flex rounded-md bg-blue-50 p-2 text-blue-700"><Search size={18} /></div>
+              <h3 className="text-lg font-semibold text-slate-900">Track Your Request</h3>
+              <p className="mt-1 text-sm text-slate-600">Track any submitted service request reference number.</p>
+              <button className="mt-4 rounded-md border px-4 py-2 text-sm font-semibold" onClick={() => setShowTrackModal(true)} type="button">Track Now</button>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-6">
+              <div className="mb-3 inline-flex rounded-md bg-blue-50 p-2 text-blue-700"><History size={18} /></div>
+              <h3 className="text-lg font-semibold text-slate-900">Request History</h3>
+              <p className="mt-1 text-sm text-slate-600">Your latest requests from the database.</p>
+              <div className="mt-4 space-y-2 text-sm">
+                {history.slice(0, 4).map((item) => (
+                  <div key={item._id} className="rounded border border-slate-200 p-2">
+                    <p className="font-semibold text-slate-900">{item.referenceNo}</p>
+                    <p className="text-slate-500">{item.serviceType} • {item.status}</p>
+                  </div>
+                ))}
+                {history.length === 0 && <p className="text-slate-500">No requests yet.</p>}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {services.map((service, idx) => {
+              const Icon = (iconMap as any)[service.code] || FileText;
+              return (
+                <button
+                  key={service.code}
+                  className={`h-full rounded-xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md ${
+                    idx === 2 ? "md:col-span-2 md:mx-auto md:w-[60%]" : ""
+                  }`}
+                  onClick={() => {
+                    setActiveCode(service.code);
+                    setShowRequestModal(true);
+                  }}
+                  type="button"
+                >
+                  <div className="mb-4 inline-flex rounded-full bg-slate-100 p-3 text-slate-800"><Icon size={20} /></div>
+                  <h3 className="text-xl font-bold text-slate-900">{service.title}</h3>
+                  <p className="mt-2 text-sm text-slate-600">{service.desc}</p>
+                  <p className="mt-5 text-xs font-bold text-slate-700">Commonly used for:</p>
+                  <p className="mt-1 text-xs text-slate-500">{service.usage}</p>
+                  <div className="mt-4 flex items-center justify-between text-xs font-semibold text-slate-500">
+                    <span className="inline-flex items-center gap-1"><Clock size={12} /> {service.time}</span>
+                    <span className="inline-flex items-center gap-1 text-slate-900">Start <ArrowRight size={12} /></span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </main>
+
+      {showTrackModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6">
+            <button className="mb-2 ml-auto block text-slate-500" onClick={() => setShowTrackModal(false)} type="button"><X size={18} /></button>
+            <h3 className="mb-4 text-lg font-semibold text-slate-900">Track Request</h3>
+            {isTracking && <div className="mb-3"><p className="mb-1 text-xs text-slate-500">Checking request... {trackProgress}%</p><div className="h-2 rounded bg-slate-200"><div className="h-2 rounded bg-blue-600 transition-all" style={{ width: `${trackProgress}%` }} /></div></div>}
+            <form onSubmit={trackRequest}>
+              <input className="mb-3 w-full rounded-lg border px-3 py-2" placeholder="BT-SVC-YYYY-XXXXXX" value={trackRef} onChange={(e) => setTrackRef(e.target.value)} required />
+              <button disabled={isTracking} type="submit" className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{isTracking ? "Checking..." : "Check Status"}</button>
+            </form>
+            {tracked && (
+              <div className="mt-4 rounded-lg border border-slate-200 p-3 text-sm">
+                <p className="font-semibold text-slate-900">{tracked.referenceNo}</p>
+                <p className="text-slate-600">{tracked.serviceType}</p>
+                <p className="text-slate-600">Status: {tracked.status}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showRequestModal && activeService && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-3xl rounded-xl bg-white p-6">
+            <button className="mb-2 ml-auto block text-slate-500" onClick={() => setShowRequestModal(false)} type="button"><X size={18} /></button>
+            <div className="grid gap-6 lg:grid-cols-[1fr,280px]">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">{activeService.title} Request</h2>
+                <p className="mt-1 text-sm text-slate-600">{activeService.desc}</p>
+                {isSubmitting && <div className="mt-3"><p className="mb-1 text-xs text-slate-500">Submitting request... {submitProgress}%</p><div className="h-2 rounded bg-slate-200"><div className="h-2 rounded bg-emerald-600 transition-all" style={{ width: `${submitProgress}%` }} /></div></div>}
+                <form className="mt-6 space-y-3" onSubmit={submitRequest}>
+                  <input required className="w-full rounded-lg border px-3 py-2" placeholder="Full Name" value={formData.fullName} onChange={(e) => setFormData((p) => ({ ...p, fullName: e.target.value }))} />
+                  <input required className="w-full rounded-lg border px-3 py-2" placeholder="Contact Number" value={formData.contactNumber} onChange={(e) => setFormData((p) => ({ ...p, contactNumber: e.target.value }))} />
+                  <input required className="w-full rounded-lg border px-3 py-2" placeholder="Address" value={formData.address} onChange={(e) => setFormData((p) => ({ ...p, address: e.target.value }))} />
+                  <select required className="w-full rounded-lg border px-3 py-2" value={formData.purpose} onChange={(e) => setFormData((p) => ({ ...p, purpose: e.target.value }))}>
+                    <option value="">Purpose of Request</option>
+                    <option value="employment">Employment</option>
+                    <option value="school">School Requirement</option>
+                    <option value="benefits">Government Assistance</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <button disabled={isSubmitting} type="submit" className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">{isSubmitting ? "Submitting..." : "Submit Request"}</button>
+                </form>
+              </div>
+              <aside className="space-y-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <h3 className="mb-3 font-semibold text-slate-900">Requirements</h3>
+                  <ul className="space-y-2 text-sm text-slate-700">
+                    {activeService.requirements.map((req) => (
+                      <li key={req} className="flex items-center gap-2"><CheckCircle size={14} /> {req}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <h3 className="font-semibold text-slate-900">Processing Time</h3>
+                  <p className="mt-2 text-2xl font-bold text-slate-900">{activeService.time}</p>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
-          <Chatbot />
+      <Chatbot />
     </div>
   );
 }

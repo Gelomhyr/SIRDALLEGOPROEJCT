@@ -5,7 +5,7 @@ import { LogoutConfirmation } from '@/components/LogoutConfirmation';
 import { Button } from "@/components/ui/button";
 import { User, ChevronDown, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-import axios from "axios";
+import { api } from "@/lib/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +27,7 @@ export function Header() {
       const token = localStorage.getItem("token");
       if (token) {
         try {
-          const res = await axios.get("http://localhost:5000/api/auth/user", {
+          const res = await api.get("/api/auth/user", {
             headers: { "x-auth-token": token },
           });
           setUser(res.data);
@@ -143,7 +143,11 @@ export function Header() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
-                <User className="w-5 h-5" />
+                {user?.avatarImage ? (
+                  <img src={user.avatarImage} alt="Profile" className="h-10 w-10 rounded-full object-cover" />
+                ) : (
+                  <User className="w-5 h-5" />
+                )}
               </button>
             </DropdownMenuTrigger>
 
@@ -180,6 +184,30 @@ export function Header() {
           </button>
         </div>
       </div>
+
+      {isMenuOpen && (
+        <div className="border-t border-gray-100 bg-white px-4 py-3 lg:hidden">
+          <nav className="flex flex-col gap-2">
+            {navLinks.map((link) => (
+              <Link
+                key={link.label}
+                to={link.href}
+                onClick={() => setIsMenuOpen(false)}
+                className={cn("rounded-md px-3 py-2 text-sm font-semibold", location.pathname === link.href ? "bg-slate-100 text-primary" : "text-slate-600")}
+              >
+                {link.label}
+              </Link>
+            ))}
+            <Link
+              to="/announcements"
+              onClick={() => setIsMenuOpen(false)}
+              className={cn("rounded-md px-3 py-2 text-sm font-semibold", isAnnouncementsActive ? "bg-slate-100 text-primary" : "text-slate-600")}
+            >
+              Announcements
+            </Link>
+          </nav>
+        </div>
+      )}
 
       <LogoutConfirmation 
         isOpen={showLogoutDialog}

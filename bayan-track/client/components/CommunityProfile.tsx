@@ -1,5 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
 interface StatCardProps {
   value: string;
@@ -18,12 +20,27 @@ function StatCard({ value, label, sublabel }: StatCardProps) {
 }
 
 export function CommunityProfile() {
-  const stats = [
+  const fallbackStats = [
     { value: "4102", label: "Postal Code", sublabel: "Bacoor City" },
     { value: "7,129", label: "Population", sublabel: "2020 Census" },
     { value: "IV-A", label: "Region", sublabel: "CALABARZON" },
     { value: "CAVITE", label: "Province", sublabel: "Philippines" },
   ];
+  const [stats, setStats] = useState(fallbackStats);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await api.get("/api/content/site");
+        if (Array.isArray(res.data?.communityCards) && res.data.communityCards.length > 0) {
+          setStats(res.data.communityCards);
+        }
+      } catch {
+        setStats(fallbackStats);
+      }
+    };
+    void load();
+  }, []);
 
   return (
     <section className="py-24 container mx-auto px-4 max-w-6xl">

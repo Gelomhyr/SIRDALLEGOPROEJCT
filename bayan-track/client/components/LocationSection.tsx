@@ -1,5 +1,6 @@
 import { MapPin, Clock, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 export function LocationSection() {
   return (
@@ -42,14 +43,14 @@ export function LocationSection() {
               </div>
             </div>
 
-            <Button className="w-full h-14 bg-[#3b528a] hover:bg-[#2e4170] text-white rounded-xl font-bold text-lg shadow-lg">
-              Contact Details
-            </Button>
+            <Link to="/contact" className="block">
+              <Button className="w-full h-14 bg-[#3b528a] hover:bg-[#2e4170] text-white rounded-xl font-bold text-lg shadow-lg">
+                Contact Details
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
     </section>
   );
 }
-
-import { Link } from "react-router-dom";

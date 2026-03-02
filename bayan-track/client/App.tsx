@@ -59,8 +59,22 @@ const App = () => (
           <Route path="/ProfileSettings" element={<ProfileSettings />} />
 
           {/* ADMIN ROUTES */}
-          <Route path="/admin-dashboard" element={<AdminDashboard />} />
-          <Route path="/super-admin-dashboard" element={<SuperAdminDashboard />} />
+          <Route
+            path="/admin-dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "superadmin"]}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin-dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["superadmin"]}>
+                <SuperAdminDashboard />
+              </ProtectedRoute>
+            }
+          />
 
           {/* ANNOUNCEMENTS */}
           <Route path="/announcements" element={<Announcements />} />

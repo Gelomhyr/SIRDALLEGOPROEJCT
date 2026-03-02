@@ -1,5 +1,6 @@
 import { AlertTriangle, FileText, Megaphone, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 interface ActionCardProps {
   icon: React.ElementType;
@@ -7,15 +8,16 @@ interface ActionCardProps {
   colorClass: string;
   iconColorClass: string;
   bgColorClass: string;
+  onClick: () => void;
 }
 
-function ActionCard({ icon: Icon, title, colorClass, iconColorClass, bgColorClass }: ActionCardProps) {
+function ActionCard({ icon: Icon, title, colorClass, iconColorClass, bgColorClass, onClick }: ActionCardProps) {
   return (
     <div className={cn(
       "flex flex-col items-center justify-center p-8 rounded-xl transition-all hover:scale-105 cursor-pointer shadow-md border-b-4",
       bgColorClass,
       colorClass
-    )}>
+    )} onClick={onClick}>
       <div className={cn("p-4 rounded-full mb-4", iconColorClass)}>
         <Icon className="w-8 h-8" />
       </div>
@@ -25,6 +27,7 @@ function ActionCard({ icon: Icon, title, colorClass, iconColorClass, bgColorClas
 }
 
 export function QuickActions() {
+  const navigate = useNavigate();
   const actions = [
     {
       title: "Report Issue",
@@ -32,6 +35,7 @@ export function QuickActions() {
       colorClass: "border-red-500",
       iconColorClass: "text-red-600 bg-red-100",
       bgColorClass: "bg-[#fef2f2]",
+      onClick: () => navigate("/ReportIssue"),
     },
     {
       title: "Certificates",
@@ -39,6 +43,7 @@ export function QuickActions() {
       colorClass: "border-blue-500",
       iconColorClass: "text-blue-600 bg-blue-100",
       bgColorClass: "bg-[#eff6ff]",
+      onClick: () => navigate("/services"),
     },
     {
       title: "News & Alerts",
@@ -46,6 +51,7 @@ export function QuickActions() {
       colorClass: "border-amber-500",
       iconColorClass: "text-amber-600 bg-amber-100",
       bgColorClass: "bg-[#fffbeb]",
+      onClick: () => navigate("/announcements"),
     },
     {
       title: "Hotlines",
@@ -53,6 +59,7 @@ export function QuickActions() {
       colorClass: "border-green-500",
       iconColorClass: "text-green-600 bg-green-100",
       bgColorClass: "bg-[#f0fdf4]",
+      onClick: () => navigate("/announcements/emergency-hotlines"),
     },
   ];
 

@@ -4,22 +4,16 @@ import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import User from '../models/User.js';
 import Otp from '../models/Otp.js';
+import ActivityLog from '../models/ActivityLog.js';
+import SystemSetting from '../models/SystemSetting.js';
+import { auth } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Middleware to verify JWT token
-const auth = (req, res, next) => {
-  const token = req.header('x-auth-token');
-  if (!token) return res.status(401).json({ msg: 'No token, authorization denied' });
-
-  try {
-    const decoded = jwt.verify(token, 'secrettoken');
-    req.user = decoded.user;
-    next();
-  } catch (err) {
-    res.status(401).json({ msg: 'Token is not valid' });
-  }
-};
+async function readSystemSettings() {
+  const settings = await SystemSetting.findOne();
+  return settings || { allowResidentRegistration: true, lockoutWindowMinutes: 15 };
+}
 
 // Email Transporter Configuration
 // TODO: Replace with your actual email service credentials
@@ -38,6 +32,11 @@ router.post('/send-otp', async (req, res) => {
   const { email } = req.body;
 
   try {
+    const settings = await readSystemSettings();
+    if (!settings.allowResidentRegistration) {
+      return res.status(403).json({ msg: 'Resident registration is temporarily disabled by system settings.' });
+    }
+
     // Check if user already exists
     let user = await User.findOne({ email });
     if (user) {
@@ -69,13 +68,51 @@ router.post('/send-otp', async (req, res) => {
   }
 });
 
+// @route   POST api/auth/register/check
+// @desc    Validate registration fields before sending OTP
+// @access  Public
+router.post('/register/check', async (req, res) => {
+  const { username, email, contactNumber } = req.body;
+  try {
+    const settings = await readSystemSettings();
+    if (!settings.allowResidentRegistration) {
+      return res.status(403).json({ msg: 'Resident registration is temporarily disabled by system settings.' });
+    }
+
+    if (!username || !email || !contactNumber) {
+      return res.status(400).json({ msg: 'Username, email, and phone number are required.' });
+    }
+
+    if (!/^\d{11}$/.test(contactNumber)) {
+      return res.status(400).json({ msg: 'Contact number must be exactly 11 digits' });
+    }
+
+    const user = await User.findOne({ $or: [{ email }, { username }, { contactNumber }] });
+    if (user) {
+      if (user.email === email) return res.status(400).json({ msg: 'Email is already registered.' });
+      if (user.username === username) return res.status(400).json({ msg: 'Username is already taken.' });
+      if (user.contactNumber === contactNumber) return res.status(400).json({ msg: 'Phone number is already registered.' });
+      return res.status(400).json({ msg: 'Account details already in use.' });
+    }
+
+    return res.json({ msg: 'Registration details are available.' });
+  } catch (_err) {
+    return res.status(500).json({ msg: 'Failed to validate registration details.' });
+  }
+});
+
 // @route   POST api/auth/register
 // @desc    Register a new user
 // @access  Public
 router.post('/register', async (req, res) => {
-  const { username, firstName, middleName, lastName, address, contactNumber, email, password, otp } = req.body;
+  const { username, firstName, middleName, lastName, address, contactNumber, email, password, otp, validIdType, validIdImage } = req.body;
 
   try {
+    const settings = await readSystemSettings();
+    if (!settings.allowResidentRegistration) {
+      return res.status(403).json({ msg: 'Resident registration is temporarily disabled by system settings.' });
+    }
+
     // Verify OTP
     const validOtp = await Otp.findOne({ email, otp });
     if (!validOtp) {
@@ -87,12 +124,38 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ msg: 'Contact number must be exactly 11 digits' });
     }
 
-    let user = await User.findOne({ $or: [{ email }, { username }] });
+    let user = await User.findOne({ $or: [{ email }, { username }, { contactNumber }] });
     if (user) {
-      return res.status(400).json({ msg: 'User with this email or username already exists' });
+      if (user.email === email) {
+        return res.status(400).json({ msg: 'Email is already registered.' });
+      }
+      if (user.username === username) {
+        return res.status(400).json({ msg: 'Username is already taken.' });
+      }
+      if (user.contactNumber === contactNumber) {
+        return res.status(400).json({ msg: 'Phone number is already registered.' });
+      }
+      return res.status(400).json({ msg: 'Account details already in use.' });
     }
 
-    user = new User({ username, firstName, middleName, lastName, address, contactNumber, email, password });
+    if (!validIdType || !validIdImage) {
+      return res.status(400).json({ msg: 'Valid ID type and image are required' });
+    }
+
+    user = new User({
+      username,
+      firstName,
+      middleName,
+      lastName,
+      address,
+      contactNumber,
+      email,
+      password,
+      validIdType,
+      validIdImage,
+      status: 'pending',
+      validIdStatus: 'pending',
+    });
 
     // Hash password before saving
     const salt = await bcrypt.genSalt(10);
@@ -103,7 +166,7 @@ router.post('/register', async (req, res) => {
     // Delete used OTP
     await Otp.deleteOne({ _id: validOtp._id });
 
-    res.send('User registered successfully');
+    res.send('Registration submitted. Awaiting superadmin approval.');
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
@@ -117,23 +180,56 @@ router.post('/login', async (req, res) => {
   const { identifier, password } = req.body; // identifier can be username, email or phone
 
   try {
+    const settings = await readSystemSettings();
+    const lockoutMinutes = Number(settings.lockoutWindowMinutes) > 0 ? Number(settings.lockoutWindowMinutes) : 15;
+
     // Check for user by Username OR Email OR Contact Number
     const user = await User.findOne({ 
       $or: [{ email: identifier }, { contactNumber: identifier }, { username: identifier }] 
     });
     if (!user) {
-      return res.status(400).json({ msg: 'Invalid Credentials' });
+      return res.status(404).json({ msg: 'Account is not registered yet or may have been deleted.' });
+    }
+
+    if (user.lockUntil && user.lockUntil > new Date()) {
+      return res.status(423).json({
+        msg: 'Too many failed login attempts. Please use Forgot Password (OTP) or try again later.',
+      });
     }
 
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      const attempts = (user.failedLoginAttempts || 0) + 1;
+      const lockNow = attempts >= 3;
+      user.failedLoginAttempts = lockNow ? 0 : attempts;
+      user.lockUntil = lockNow ? new Date(Date.now() + lockoutMinutes * 60 * 1000) : null;
+      await user.save();
+      if (lockNow) {
+        return res.status(423).json({
+          msg: `Too many failed login attempts. Please use Forgot Password (OTP) or try again in ${lockoutMinutes} minutes.`,
+        });
+      }
       return res.status(400).json({ msg: 'Invalid Credentials' });
+    }
+
+    // superadmin account must always be login-capable even if status is not active
+    if (user.role !== 'superadmin' && user.status !== 'active') {
+      if (user.status === 'suspended') {
+        return res.status(403).json({ msg: 'This account was archived by superadmin. Contact support or use Forgot Password.' });
+      }
+      return res.status(403).json({ msg: 'Account is pending approval by superadmin.' });
+    }
+
+    if (user.failedLoginAttempts || user.lockUntil) {
+      user.failedLoginAttempts = 0;
+      user.lockUntil = null;
+      await user.save();
     }
 
     // Return Token (JWT)
     const payload = { user: { id: user.id } };
-    jwt.sign(payload, 'secrettoken', { expiresIn: 3600 }, (err, token) => {
+    jwt.sign(payload, process.env.JWT_SECRET || 'secrettoken', { expiresIn: 3600 }, (err, token) => {
       if (err) throw err;
       res.json({ token, role: user.role });
     });
@@ -163,7 +259,7 @@ router.get('/user', auth, async (req, res) => {
 // @desc    Update user data
 // @access  Private
 router.put('/user', auth, async (req, res) => {
-  const { firstName, middleName, lastName, address, contactNumber, email } = req.body;
+  const { firstName, middleName, lastName, address, contactNumber, email, avatarImage } = req.body;
   
   // Build user object
   const userFields = {};
@@ -173,16 +269,36 @@ router.put('/user', auth, async (req, res) => {
   if (address) userFields.address = address;
   if (contactNumber) userFields.contactNumber = contactNumber;
   if (email) userFields.email = email;
+  if (avatarImage !== undefined) userFields.avatarImage = avatarImage;
 
   try {
     let user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
+    if (email && email !== user.email) {
+      const emailExists = await User.findOne({ email, _id: { $ne: req.user.id } });
+      if (emailExists) return res.status(400).json({ msg: 'Email is already registered.' });
+    }
+
+    if (contactNumber && contactNumber !== user.contactNumber) {
+      if (!/^\d{11}$/.test(contactNumber)) {
+        return res.status(400).json({ msg: 'Contact number must be exactly 11 digits' });
+      }
+      const phoneExists = await User.findOne({ contactNumber, _id: { $ne: req.user.id } });
+      if (phoneExists) return res.status(400).json({ msg: 'Phone number is already registered.' });
+    }
+
     user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: userFields },
-      { new: true }
+      { returnDocument: 'after' }
     ).select('-password');
+
+    await ActivityLog.create({
+      user: req.user.id,
+      type: 'profile-update',
+      title: 'Updated profile settings',
+    });
 
     res.json(user);
   } catch (err) {
@@ -249,6 +365,8 @@ router.post('/reset-password', async (req, res) => {
     // Hash new password
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
+    user.failedLoginAttempts = 0;
+    user.lockUntil = null;
     await user.save();
 
     // Delete used OTP

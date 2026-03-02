@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, User, Lock, ArrowRight, ArrowLeft, Mail, MapPin, Phone, Upload, X, CloudSun, Megaphone, Activity, CheckCircle } from "lucide-react";
 import { FeedbackModal } from "@/components/FeedbackModal";
+import { getRole, getRoleHome, getToken, setAuthSession, type UserRole } from "@/lib/auth";
+import { api } from "@/lib/api";
 
 type ViewState = "login" | "forgot" | "create" | "reset";
+type LiveUpdate = { category: string; text: string; module?: string };
 
 const Login = () => {
   const navigate = useNavigate();
@@ -17,6 +19,8 @@ const Login = () => {
   const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otp, setOtp] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginProgress, setLoginProgress] = useState(0);
 
   // Live Updates State
   const [currentUpdateIndex, setCurrentUpdateIndex] = useState(0);
@@ -36,6 +40,8 @@ const Login = () => {
     address: "",
     contactNumber: "",
     email: "",
+    validIdType: "barangay-id",
+    validIdImage: "",
     password: "",
     confirmPassword: ""
   });
@@ -57,19 +63,35 @@ const Login = () => {
     type: 'success' | 'error';
   }>({ isOpen: false, title: "", message: "", type: "success" });
 
-  const updates = [
-    { category: "Weather Update", text: "Partly Cloudy • 31°C • Chance of rain in the afternoon.", icon: <CloudSun size={16} className="text-orange-500" /> },
-    { category: "Barangay Update", text: "Free Anti-Rabies Vaccination at the Covered Court tomorrow, 8AM-12NN.", icon: <Megaphone size={16} className="text-blue-500" /> },
-    { category: "PHIVOLCS Alert", text: "No active volcano or tsunami threats detected in the region.", icon: <Activity size={16} className="text-red-500" /> },
-    { category: "Fact Check", text: "Verified: No scheduled water interruption for Mambog II this weekend.", icon: <CheckCircle size={16} className="text-emerald-500" /> },
-  ];
+  const [liveUpdates, setLiveUpdates] = useState<LiveUpdate[]>([]);
 
   useEffect(() => {
+    const loadUpdates = async () => {
+      try {
+        const res = await api.get("/api/announcements?limit=8");
+        const mapped = (res.data || []).map((item: any) => ({
+          category: item.category || item.module || "Announcement",
+          text: item.title ? `${item.title}: ${item.content}` : item.content,
+          module: item.module,
+        }));
+        setLiveUpdates(mapped.length > 0 ? mapped : [{ category: "Announcement", text: "No updates posted yet." }]);
+      } catch {
+        setLiveUpdates([{ category: "Announcement", text: "Unable to load live updates right now." }]);
+      }
+    };
+    void loadUpdates();
+  }, []);
+
+  useEffect(() => {
+    if (liveUpdates.length === 0) return;
+    if (currentUpdateIndex >= liveUpdates.length) {
+      setCurrentUpdateIndex(0);
+    }
     const timer = setInterval(() => {
-      setCurrentUpdateIndex((prev) => (prev + 1) % updates.length);
+      setCurrentUpdateIndex((prev) => (prev + 1) % liveUpdates.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [liveUpdates.length, currentUpdateIndex]);
 
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLoginData({ ...loginData, [e.target.name]: e.target.value });
@@ -77,6 +99,31 @@ const Login = () => {
 
   const handleRegisterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setRegisterData({ ...registerData, [e.target.name]: e.target.value });
+  };
+
+  const handleIdTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setRegisterData({ ...registerData, validIdType: e.target.value });
+  };
+
+  const handleValidIdUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const maxBytes = 2 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setFeedback({
+        isOpen: true,
+        title: "Image Too Large",
+        message: "Valid ID image must be 2MB or below.",
+        type: "error",
+      });
+      e.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setRegisterData((prev) => ({ ...prev, validIdImage: String(reader.result || "") }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleResetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,22 +134,25 @@ const Login = () => {
     e.preventDefault();
 
     if (view === "login") {
+      setLoginLoading(true);
+      setLoginProgress(20);
       try {
-        const res = await axios.post("http://localhost:5000/api/auth/login", {
+        const res = await api.post("/api/auth/login", {
           identifier: loginData.identifier,
           password: loginData.password,
         });
-        localStorage.setItem("token", res.data.token);
-        
-        if (res.data.role === 'admin') {
-          navigate("/admin-dashboard");
-        } else if (res.data.role === 'superadmin') {
-          navigate("/super-admin-dashboard");
-        } else {
-          navigate("/home");
-        }
+        const role: UserRole =
+          res.data.role === "admin" || res.data.role === "superadmin"
+            ? res.data.role
+            : "resident";
+
+        setAuthSession(res.data.token, role);
+        setLoginProgress(100);
+        navigate(getRoleHome(role));
       } catch (err: any) {
         setFeedback({ isOpen: true, title: "Login Failed", message: err.response?.data?.msg || "Invalid credentials.", type: "error" });
+      } finally {
+        setTimeout(() => { setLoginLoading(false); setLoginProgress(0); }, 300);
       }
     } else if (view === "create") {
       if (!agreeTerms) {
@@ -117,9 +167,18 @@ const Login = () => {
         setFeedback({ isOpen: true, title: "Invalid Contact", message: "Contact number must be exactly 11 digits.", type: "error" });
         return;
       }
+      if (!registerData.validIdType || !registerData.validIdImage) {
+        setFeedback({ isOpen: true, title: "Valid ID Required", message: "Select a valid ID type and upload an ID image.", type: "error" });
+        return;
+      }
 
       try {
-        await axios.post("http://localhost:5000/api/auth/send-otp", { email: registerData.email });
+        await api.post("/api/auth/register/check", {
+          username: registerData.username,
+          email: registerData.email,
+          contactNumber: registerData.contactNumber,
+        });
+        await api.post("/api/auth/send-otp", { email: registerData.email });
         setShowOtpModal(true);
         setFeedback({ isOpen: true, title: "OTP Sent", message: "Please check your email for the verification code.", type: "success" });
       } catch (err: any) {
@@ -131,7 +190,7 @@ const Login = () => {
         return;
       }
       try {
-        await axios.post("http://localhost:5000/api/auth/forgot-password", { email: resetData.email });
+        await api.post("/api/auth/forgot-password", { email: resetData.email });
         setFeedback({ isOpen: true, title: "OTP Sent", message: "Please check your email for the verification code.", type: "success" });
         setView("reset");
       } catch (err: any) {
@@ -143,7 +202,7 @@ const Login = () => {
         return;
       }
       try {
-        await axios.post("http://localhost:5000/api/auth/reset-password", {
+        await api.post("/api/auth/reset-password", {
           email: resetData.email,
           otp: resetData.otp,
           newPassword: resetData.newPassword
@@ -158,8 +217,8 @@ const Login = () => {
 
   const handleVerifyAndRegister = async () => {
     try {
-      await axios.post("http://localhost:5000/api/auth/register", { ...registerData, otp });
-      setFeedback({ isOpen: true, title: "Welcome!", message: "Registration Successful! You can now login.", type: "success" });
+      await api.post("/api/auth/register", { ...registerData, otp });
+      setFeedback({ isOpen: true, title: "Registration Submitted", message: "Your account is pending superadmin approval before login.", type: "success" });
       setShowOtpModal(false);
       setView("login");
     } catch (err: any) {
@@ -168,11 +227,29 @@ const Login = () => {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    if (!loginLoading) return;
+    const timer = setInterval(() => {
+      setLoginProgress((prev) => (prev >= 90 ? prev : prev + 10));
+    }, 250);
+    return () => clearInterval(timer);
+  }, [loginLoading]);
+
+  useEffect(() => {
+    const token = getToken();
     if (token) {
-      navigate("/home");
+      navigate(getRoleHome(getRole()));
     }
   }, [navigate]);
+
+  const currentUpdate = liveUpdates[currentUpdateIndex] || { category: "Announcement", text: "Loading updates..." };
+
+  const getUpdateIcon = (moduleOrCategory?: string) => {
+    const key = (moduleOrCategory || "").toLowerCase();
+    if (key.includes("weather")) return <CloudSun size={16} className="text-orange-500" />;
+    if (key.includes("phivolcs")) return <Activity size={16} className="text-red-500" />;
+    if (key.includes("fact")) return <CheckCircle size={16} className="text-emerald-500" />;
+    return <Megaphone size={16} className="text-blue-500" />;
+  };
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-6 font-sans selection:bg-blue-100 selection:text-blue-900">
@@ -265,17 +342,17 @@ const Login = () => {
                 className="absolute inset-0 flex flex-col justify-center rounded-2xl bg-white/50 backdrop-blur-sm border border-white/60 p-5 shadow-sm"
               >
                 <div className="flex items-center gap-2 mb-1">
-                  {updates[currentUpdateIndex].icon}
-                  <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">{updates[currentUpdateIndex].category}</span>
+                  {getUpdateIcon(currentUpdate.module || currentUpdate.category)}
+                  <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">{currentUpdate.category}</span>
                 </div>
                 <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                  {updates[currentUpdateIndex].text}
+                  {currentUpdate.text}
                 </p>
               </motion.div>
             </div>
 
             <div className="flex gap-1.5 mt-4 pl-1">
-              {updates.map((_, idx) => (
+              {liveUpdates.map((_, idx) => (
                 <div 
                   key={idx} 
                   className={`h-1 rounded-full transition-all duration-500 ${idx === currentUpdateIndex ? "w-8 bg-blue-600" : "w-2 bg-slate-300"}`}
@@ -293,6 +370,14 @@ const Login = () => {
             <>
               <h3 className="text-3xl font-bold text-slate-900">Resident Login</h3>
               <p className="mt-2 text-sm text-slate-500">Enter your credentials to access the resident portal.</p>
+              {loginLoading && (
+                <div className="mt-4">
+                  <p className="mb-1 text-xs font-semibold text-slate-500">Logging in... {loginProgress}%</p>
+                  <div className="h-2 w-full rounded bg-slate-200">
+                    <div className="h-2 rounded bg-blue-600 transition-all duration-200" style={{ width: `${loginProgress}%` }} />
+                  </div>
+                </div>
+              )}
               <form className="mt-8 flex flex-col gap-5" onSubmit={handleAction}>
                 <div className="flex flex-col gap-2">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 ml-1">Username / Email / Phone</label>
@@ -314,8 +399,8 @@ const Login = () => {
                     </button>
                   </div>
                 </div>
-                <button type="submit" className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-[#1e293b] py-4 text-sm font-bold text-white transition hover:bg-slate-800">
-                  Login to Portal <ArrowRight size={18} />
+                <button disabled={loginLoading} type="submit" className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-[#1e293b] py-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-60">
+                  {loginLoading ? "Logging in..." : "Login to Portal"} <ArrowRight size={18} />
                 </button>
               </form>
               <div className="mt-10 text-center">
@@ -440,14 +525,35 @@ const Login = () => {
                 </div>
 
                 {/* ✅ Added Valid ID Upload Field */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Upload Valid ID (Barangay ID, Voter's, etc.)</label>
-                  <div className="relative flex items-center justify-center w-full rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 py-6 hover:bg-slate-100 cursor-pointer">
-                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" />
-                    <div className="flex flex-col items-center gap-2 text-slate-400">
-                      <Upload size={20} />
-                      <span className="text-[10px]">Click or drag to upload image</span>
+                <div className="flex gap-4">
+                  <div className="flex-1 flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Valid ID Type</label>
+                    <select
+                      value={registerData.validIdType}
+                      onChange={handleIdTypeChange}
+                      className="w-full rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs outline-none focus:border-blue-500 focus:bg-white"
+                    >
+                      <option value="barangay-id">Barangay ID</option>
+                      <option value="voters-id">Voter's ID</option>
+                      <option value="other">Other Government ID</option>
+                    </select>
+                  </div>
+                  <div className="flex-1 flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Upload Valid ID</label>
+                    <div className="relative flex items-center justify-center w-full rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 py-6 hover:bg-slate-100 cursor-pointer">
+                      <input type="file" accept="image/*" onChange={handleValidIdUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                      <div className="flex flex-col items-center gap-2 text-slate-400">
+                        <Upload size={20} />
+                        <span className="text-[10px]">{registerData.validIdImage ? "ID uploaded" : "Click or drag to upload image"}</span>
+                      </div>
                     </div>
+                    {registerData.validIdImage && (
+                      <img
+                        src={registerData.validIdImage}
+                        alt="Valid ID preview"
+                        className="mt-2 h-20 w-full rounded-lg border border-slate-200 object-cover"
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -515,3 +621,6 @@ const Login = () => {
 };
 
 export default Login;
+
+
+

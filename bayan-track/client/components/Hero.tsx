@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export function Hero() {
+  const navigate = useNavigate();
   return (
     <section className="relative h-[600px] w-full overflow-hidden">
       {/* Background Image */}
@@ -42,6 +44,7 @@ export function Hero() {
           <Button 
             size="lg" 
             className="rounded-md font-bold px-8 h-14 bg-[#4f46e5] hover:bg-[#4338ca] text-white flex items-center gap-2 transition-all shadow-lg"
+            onClick={() => navigate("/services")}
           >
             Online Services
             <ArrowRight className="w-5 h-5" />
@@ -50,6 +53,7 @@ export function Hero() {
             size="lg" 
             variant="outline"
             className="rounded-md font-bold px-8 h-14 bg-white text-primary hover:bg-white/90 border-transparent transition-all shadow-lg"
+            onClick={() => navigate("/about")}
           >
             About The Community
           </Button>

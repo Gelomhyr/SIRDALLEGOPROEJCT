@@ -10,22 +10,27 @@ import { FacilitiesSection } from "@/components/FacilitiesSection";
 import { Footer } from "@/components/Footer";
 import { Chatbot } from "@/components/Chatbot";
 import { Reveal } from "@/components/Reveal";
+import { api } from "@/lib/api";
 
 
  
 
 export default function Index() {
   const [email, setEmail] = useState("");
+  const [subscribeMessage, setSubscribeMessage] = useState("");
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!email) return;
 
-    // Temporary action (replace with API later)
-    console.log("Subscribed:", email);
-    setEmail("");
-    alert("Thank you for subscribing!");
+    try {
+      await api.post("/api/subscriptions", { email, source: "homepage" });
+      setSubscribeMessage("Subscription saved. You will receive barangay updates.");
+      setEmail("");
+    } catch (err: any) {
+      setSubscribeMessage(err?.response?.data?.msg || "Failed to subscribe. Please try again.");
+    }
   };
 
   return (
@@ -82,6 +87,7 @@ export default function Index() {
                 Subscribe
               </button>
             </form>
+            {subscribeMessage && <p className="mt-4 text-sm text-slate-600">{subscribeMessage}</p>}
           </div>
         </section>
         </Reveal>

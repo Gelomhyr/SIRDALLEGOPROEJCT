@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Maximize2, Sparkles, ArrowRight, AlertTriangle } from "lucide-react";
+import { MessageCircle, X, Send, Maximize2, Minimize2, Sparkles, ArrowRight, AlertTriangle } from "lucide-react";
+import { api } from "@/lib/api";
 
 // Fallback for `cn` if not imported
 const cn = (...classes: (string | undefined | null | false)[]) => classes.filter(Boolean).join(" ");
@@ -33,6 +34,10 @@ type FaqItem = {
   actions?: ActionDef[];
   showOptions?: boolean;
 };
+
+type LiveAnnouncement = { title: string; content: string; module: string; };
+type LiveService = { code: string; title: string; requirements?: string[]; };
+type LiveDepartment = { name: string; localNumber: string; };
 
 // --- SMART EMERGENCY KNOWLEDGE BASE (U2 & U3 Urgency) ---
 const EMERGENCY_DATA: EmergencyItem[] = [
@@ -173,7 +178,11 @@ export default function App() {
 
 export function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const [liveAnnouncements, setLiveAnnouncements] = useState<LiveAnnouncement[]>([]);
+  const [liveServices, setLiveServices] = useState<LiveService[]>([]);
+  const [liveDepartments, setLiveDepartments] = useState<LiveDepartment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const [messages, setMessages] = useState<Message[]>([
@@ -195,8 +204,64 @@ export function Chatbot() {
     }
   }, [messages, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const loadKnowledge = async () => {
+      try {
+        const [a, s, d] = await Promise.all([
+          api.get("/api/announcements?limit=10"),
+          api.get("/api/services/catalog"),
+          api.get("/api/contact/departments"),
+        ]);
+        setLiveAnnouncements(a.data || []);
+        setLiveServices(s.data || []);
+        setLiveDepartments(d.data || []);
+      } catch {
+        setLiveAnnouncements([]);
+        setLiveServices([]);
+        setLiveDepartments([]);
+      }
+    };
+    void loadKnowledge();
+  }, [isOpen]);
+
   const processMessage = (text: string): Message => {
     const lowerText = text.toLowerCase();
+
+    if (lowerText.includes("latest") || lowerText.includes("update") || lowerText.includes("balita")) {
+      const top = liveAnnouncements[0];
+      if (top) {
+        return {
+          id: Date.now() + 1,
+          text: `Latest community update:\n${top.title}\n${top.content}`,
+          isBot: true,
+          actions: [{ label: "View Announcements ➔", type: "link", payload: "/announcements" }],
+        };
+      }
+    }
+
+    if (lowerText.includes("service") || lowerText.includes("clearance") || lowerText.includes("indigency") || lowerText.includes("barangay id")) {
+      if (liveServices.length > 0) {
+        return {
+          id: Date.now() + 1,
+          text: `Available online services right now:\n${liveServices.map((x) => `• ${x.title}`).join("\n")}`,
+          isBot: true,
+          actions: [{ label: "Go to Services ➔", type: "link", payload: "/services" }],
+        };
+      }
+    }
+
+    if (lowerText.includes("department") || lowerText.includes("office") || lowerText.includes("local number")) {
+      if (liveDepartments.length > 0) {
+        const shortList = liveDepartments.slice(0, 3).map((d) => `• ${d.name} (${d.localNumber})`).join("\n");
+        return {
+          id: Date.now() + 1,
+          text: `Top departments:\n${shortList}`,
+          isBot: true,
+          actions: [{ label: "Contact Us ➔", type: "link", payload: "/contact" }],
+        };
+      }
+    }
     
     // 1. Check for Panic/Emergency intent FIRST (highest priority)
     const isDirectPanic = ['help', 'help!', 'help!!', 'tulong', 'saklolo'].includes(lowerText.trim());
@@ -287,7 +352,14 @@ export function Chatbot() {
     <div className="fixed bottom-6 right-6 z-[100]">
       {/* Trigger Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (isOpen) {
+            setIsOpen(false);
+            setIsExpanded(false);
+            return;
+          }
+          setIsOpen(true);
+        }}
         className={cn(
           "w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 transform hover:scale-110",
           isOpen ? "bg-red-500 rotate-90" : "bg-[#3b528a]"
@@ -298,17 +370,28 @@ export function Chatbot() {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="absolute bottom-20 right-0 w-[380px] md:w-[420px] bg-white rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-gray-100 overflow-hidden flex flex-col h-[600px] max-h-[85vh] animate-in slide-in-from-bottom-4 duration-300">
+        <div
+          className={cn(
+            "absolute bottom-20 right-0 bg-white rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-gray-100 overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 duration-300 transition-all",
+            isExpanded
+              ? "w-[92vw] sm:w-[520px] md:w-[560px] h-[82vh] max-h-[82vh]"
+              : "w-[380px] md:w-[420px] h-[600px] max-h-[85vh]",
+          )}
+        >
           
           {/* Header */}
           <div className="bg-[#3b528a] p-5 text-white relative shrink-0">
             <div className="flex items-center gap-3 mb-1">
               <Sparkles className="w-5 h-5 text-blue-300 fill-current" />
               <h3 className="font-bold text-lg">BayanTrack Help</h3>
-              <Maximize2 
-                className="w-4 h-4 ml-auto text-white/60 cursor-pointer hover:text-white transition-colors" 
-                onClick={() => alert("Maximize feature coming soon!")}
-              />
+              <button
+                className="ml-auto inline-flex rounded-md p-1 text-white/70 transition-colors hover:text-white"
+                onClick={() => setIsExpanded((v) => !v)}
+                title={isExpanded ? "Minimize chat" : "Maximize chat"}
+                type="button"
+              >
+                {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </button>
             </div>
             <p className="text-white/60 text-xs font-medium uppercase tracking-widest">
               Automated Assistant
