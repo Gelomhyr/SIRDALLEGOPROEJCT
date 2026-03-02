@@ -37,7 +37,7 @@ mongoose.connect(uri)
           contactNumber: '00000000000',
           address: 'Barangay Hall'
         });
-        console.log('Admin account created');
+        console.log('Admin account created (User: admin123, Pass: admin123)');
       }
 
       const superAdminExists = await User.findOne({ username: 'superAdmin123' });
@@ -54,13 +54,16 @@ mongoose.connect(uri)
           contactNumber: '00000000001',
           address: 'City Hall'
         });
-        console.log('Super Admin account created');
+        console.log('Super Admin account created (User: superAdmin123, Pass: superAdmin123)');
       }
     } catch (error) {
       console.error("Seeding error:", error);
     }
   })
-  .catch(err => console.log("MongoDB Connection Error: ", err));
+  .catch(err => {
+    console.log("MongoDB Connection Error: ", err);
+    console.log("\n>>> FIX: Your IP address likely changed. Go to MongoDB Atlas > Network Access > Add Current IP Address.\n");
+  });
 
 // Start Server
 const PORT = process.env.PORT || 5000;

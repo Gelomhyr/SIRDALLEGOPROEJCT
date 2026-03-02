@@ -4,7 +4,8 @@ import { Chatbot } from "@/components/Chatbot";
 import { Reveal } from "@/components/Reveal";
 
 import React, { useState } from 'react';
-import { CheckCircle, Clock, FileText, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { CheckCircle, Clock, FileText, ArrowRight, Search, History, X } from 'lucide-react';
 
 
 const FadeIn = ({ children }: any) => <div className="animate-fade-in">{children}</div>;
@@ -18,8 +19,11 @@ const MOCK_DB = {
 // ---------------------------------------------------------------------------
 
 export default function Services() {
+  const navigate = useNavigate();
   const [activeId, setActiveId] = useState<number | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showTrackModal, setShowTrackModal] = useState(false);
+  const [trackRef, setTrackRef] = useState("");
 
   const activeService = MOCK_DB.services.find(s => s.id === activeId);
 
@@ -28,6 +32,17 @@ export default function Services() {
     setTimeout(() => {
       setSuccess(`BT-SVC-2026-${Math.floor(Math.random()*10000)}`);
     }, 1500);
+  };
+
+  const handleTrackRequest = () => {
+    setShowTrackModal(true);
+  };
+
+  const handleTrackSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setShowTrackModal(false);
+    alert(`Status for ${trackRef}: In Progress (Mock Status)`);
+    setTrackRef("");
   };
 
   // Helper function to render the correct view state while keeping Header/Footer intact
@@ -137,6 +152,43 @@ export default function Services() {
           </Reveal>
         </FadeIn>
 
+        {/* Dual-Card Layout for Tracking & History */}
+        <Reveal>
+          <div className="bg-[#F4F7FC] p-6 rounded-2xl mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* Card 1: Track Your Request */}
+              <div className="bg-white rounded-[16px] shadow-sm p-6 flex flex-col items-start">
+                <div className="bg-blue-50 rounded-[12px] p-3 mb-4">
+                  <Search className="text-[#1e3a8a]" size={24} />
+                </div>
+                <h3 className="text-[#1e3a8a] font-bold text-[20px] mb-2">Track Your Request</h3>
+                <p className="text-slate-500 text-[14px] mb-6">
+                  Have a reference number? Check the status of your application.
+                </p>
+                <button onClick={handleTrackRequest} className="mt-auto border border-gray-200 text-[#1e3a8a] font-semibold rounded-lg px-6 py-2 hover:bg-gray-50 transition-colors">
+                  Track Now
+                </button>
+              </div>
+
+              {/* Card 2: Request History */}
+              <div className="bg-white rounded-[16px] shadow-sm p-6 flex flex-col items-start">
+                <div className="bg-blue-50 rounded-[12px] p-3 mb-4">
+                  <History className="text-[#1e3a8a]" size={24} />
+                </div>
+                <h3 className="text-[#1e3a8a] font-bold text-[20px] mb-2">Request History</h3>
+                <p className="text-slate-500 text-[14px] mb-6">
+                  View your previous requests and downloaded certificates.
+                </p>
+                <button onClick={() => navigate('/profile')} className="mt-auto border border-gray-200 text-[#1e3a8a] font-semibold rounded-lg px-6 py-2 hover:bg-gray-50 transition-colors">
+                  View History
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </Reveal>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {MOCK_DB.services.map((s, idx) => (
           
@@ -160,6 +212,31 @@ export default function Services() {
 
           ))}
         </div>
+
+        {/* Track Request Modal */}
+        {showTrackModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in px-4">
+            <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md relative">
+              <button onClick={() => setShowTrackModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+              <h3 className="text-xl font-bold text-[#395886] mb-4">Track Request</h3>
+              <form onSubmit={handleTrackSubmit}>
+                <input
+                  type="text"
+                  placeholder="Enter Reference Number (e.g., BT-SVC-2026-1234)"
+                  value={trackRef}
+                  onChange={(e) => setTrackRef(e.target.value)}
+                  className="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-[#638ECB] outline-none"
+                  required
+                />
+                <button type="submit" className="w-full bg-[#395886] text-white font-bold py-3 rounded-lg hover:bg-[#2c456b] transition-colors">
+                  Check Status
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

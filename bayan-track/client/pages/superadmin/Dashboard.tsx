@@ -1,14 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Settings, LogOut, Database, UserPlus, Activity, Lock } from 'lucide-react';
 import { Reveal } from '@/components/Reveal';
+import { LogoutConfirmation } from '@/components/LogoutConfirmation';
 
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/');
+  const handleLogoutClick = () => {
+    setShowLogoutDialog(true);
+  };
+
+  const confirmLogout = () => {
+    setIsLoggingOut(true);
+    setTimeout(() => {
+      localStorage.removeItem('token');
+      navigate('/');
+    }, 3000);
   };
 
   return (
@@ -39,7 +49,7 @@ export default function SuperAdminDashboard() {
         </nav>
 
         <div className="p-4 border-t border-slate-800">
-          <button onClick={handleLogout} className="flex items-center gap-3 w-full p-3 rounded-lg text-red-400 hover:bg-slate-800 transition text-sm font-medium">
+          <button onClick={handleLogoutClick} className="flex items-center gap-3 w-full p-3 rounded-lg text-red-400 hover:bg-slate-800 transition text-sm font-medium">
             <LogOut size={18} /> Logout
           </button>
         </div>
@@ -99,6 +109,14 @@ export default function SuperAdminDashboard() {
         </div>
         </Reveal>
       </main>
+
+      <LogoutConfirmation 
+        isOpen={showLogoutDialog}
+        isLoggingOut={isLoggingOut}
+        onClose={() => setShowLogoutDialog(false)}
+        onConfirm={confirmLogout}
+        darkMode={true}
+      />
     </div>
   );
 }

@@ -191,4 +191,74 @@ router.put('/user', auth, async (req, res) => {
   }
 });
 
+// @route   POST api/auth/forgot-password
+// @desc    Send OTP for password reset
+// @access  Public
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ msg: "No account found with this email." });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Save OTP to DB
+    await Otp.findOneAndUpdate(
+      { email },
+      { email, otp },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+    );
+
+    // Send Email
+    await transporter.sendMail({
+      from: '"BayanTrack" <no-reply@bayantrack.com>',
+      to: email,
+      subject: 'Password Reset Request',
+      text: `Your password reset code is: ${otp}. It expires in 5 minutes.`
+    });
+
+    res.json({ msg: "OTP sent successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Failed to send email." });
+  }
+});
+
+// @route   POST api/auth/reset-password
+// @desc    Reset password with OTP
+// @access  Public
+router.post('/reset-password', async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  try {
+    // Verify OTP
+    const validOtp = await Otp.findOne({ email, otp });
+    if (!validOtp) {
+      return res.status(400).json({ msg: "Invalid or expired OTP" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    // Delete used OTP
+    await Otp.deleteOne({ _id: validOtp._id });
+
+    res.json({ msg: "Password updated successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Server error" });
+  }
+});
+
 export default router;

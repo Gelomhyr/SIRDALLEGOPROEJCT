@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Info, History } from 'lucide-react';
+import { User, Info, History, Clock } from 'lucide-react';
 import { Chatbot } from "@/components/Chatbot";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -224,35 +224,56 @@ export default function ProfileSettings() {
           <hr className="my-8 border-gray-200" />
 
           {/* Section 2: Local Activity */}
-          <div>
-            <h2 className="text-[17px] font-bold text-[#395886] flex items-center gap-2 mb-2">
-              <History size={18} strokeWidth={2.5} /> My Local Activity
-            </h2>
-            <p className="text-[13px] text-gray-600 mb-4">
+          <div className="bg-white rounded-[24px] shadow-sm p-8 border border-gray-100">
+            {/* Header Area */}
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex gap-2 items-center text-[#1e3a8a] font-bold text-[20px]">
+                <Clock size={24} />
+                My Local Activity
+              </div>
+              <div className="bg-blue-50 text-[#1e3a8a] text-[12px] font-semibold px-3 py-1 rounded-full">
+                Recent
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-b border-gray-100 w-full mb-4"></div>
+
+            {/* Local History Section */}
+            <p className="text-slate-500 text-[14px] mb-4 text-center md:text-left">
               Recent tracking numbers saved on this browser.
             </p>
 
             {localActivity.length === 0 ? (
-              <div className="bg-[#f9fafb] border border-gray-100 rounded-md p-6 text-center">
-                <p className="text-[13px] text-gray-400 italic">
-                  No recent submissions found in local history.
-                </p>
+              <div className="border-2 border-dashed border-gray-200 rounded-[16px] p-12 flex flex-col items-center justify-center text-gray-400">
+                <Clock size={48} className="mb-4 opacity-20" />
+                <p className="text-light-gray italic text-[14px]">No recent submissions found in local history.</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {localActivity.map((activity, idx) => (
-                  <div key={idx} className="bg-white border border-gray-200 rounded-md p-4 flex justify-between items-center hover:shadow-sm transition-shadow">
+                  <div key={idx} className="bg-gray-50 border border-gray-200 rounded-[16px] p-4 flex justify-between items-center">
                     <div>
-                      <p className="text-sm font-bold text-gray-800">{activity.referenceNo}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{activity.department || 'Form Submission'}</p>
+                      <p className="text-sm font-bold text-[#1e3a8a]">{activity.referenceNo}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{activity.department || 'Form Submission'}</p>
                     </div>
-                    <span className="text-[11px] text-gray-400 font-medium">
+                    <span className="text-[11px] text-slate-400 font-medium bg-white px-2 py-1 rounded border border-gray-100">
                       {new Date(activity.timestamp).toLocaleDateString()}
                     </span>
                   </div>
                 ))}
               </div>
             )}
+
+            {/* Active Submissions Section */}
+            <div className="mt-8">
+              <h4 className="text-[#1e3a8a] font-bold text-[12px] tracking-widest uppercase mb-2">
+                ACTIVE SUBMISSIONS
+              </h4>
+              <p className="text-slate-500 italic text-[14px]">
+                No active submissions at the moment.
+              </p>
+            </div>
           </div>
 
         </div>

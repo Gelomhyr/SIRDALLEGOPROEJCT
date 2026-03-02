@@ -1,5 +1,7 @@
 import * as React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { LogoutConfirmation } from '@/components/LogoutConfirmation';
+
 import { Button } from "@/components/ui/button";
 import { User, ChevronDown, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,6 +19,8 @@ export function Header() {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const [user, setUser] = React.useState<any>(null);
+  const [showLogoutDialog, setShowLogoutDialog] = React.useState(false);
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
 
   React.useEffect(() => {
     const fetchUser = async () => {
@@ -57,10 +61,17 @@ export function Header() {
 
   const isReportActive = location.pathname.startsWith("/ReportIssue");
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
-    navigate("/"); // ✅ FIXED
+  const handleLogoutClick = () => {
+    setShowLogoutDialog(true);
+  };
+
+  const confirmLogout = () => {
+    setIsLoggingOut(true);
+    setTimeout(() => {
+      localStorage.removeItem("token");
+      setUser(null);
+      navigate("/");
+    }, 3000);
   };
 
   return (
@@ -153,7 +164,7 @@ export function Header() {
               <DropdownMenuSeparator />
 
               <DropdownMenuItem
-                onClick={handleLogout}
+                onClick={handleLogoutClick}
                 className="text-red-600"
               >
                 Logout
@@ -169,6 +180,13 @@ export function Header() {
           </button>
         </div>
       </div>
+
+      <LogoutConfirmation 
+        isOpen={showLogoutDialog}
+        isLoggingOut={isLoggingOut}
+        onClose={() => setShowLogoutDialog(false)}
+        onConfirm={confirmLogout}
+      />
     </header>
   );
 }

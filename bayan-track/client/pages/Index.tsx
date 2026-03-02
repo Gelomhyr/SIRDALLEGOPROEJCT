@@ -11,6 +11,7 @@ import { Footer } from "@/components/Footer";
 import { Chatbot } from "@/components/Chatbot";
 import { Reveal } from "@/components/Reveal";
 
+
  
 
 export default function Index() {

@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, User, Lock, ArrowRight, ArrowLeft, Mail, MapPin, Phone, Upload, X } from "lucide-react";
+import { Eye, EyeOff, User, Lock, ArrowRight, ArrowLeft, Mail, MapPin, Phone, Upload, X, CloudSun, Megaphone, Activity, CheckCircle } from "lucide-react";
+import { FeedbackModal } from "@/components/FeedbackModal";
 
-type ViewState = "login" | "forgot" | "create";
+type ViewState = "login" | "forgot" | "create" | "reset";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -12,8 +13,13 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otp, setOtp] = useState("");
+
+  // Live Updates State
+  const [currentUpdateIndex, setCurrentUpdateIndex] = useState(0);
 
   // Login State
   const [loginData, setLoginData] = useState({
@@ -35,12 +41,46 @@ const Login = () => {
   });
   const [agreeTerms, setAgreeTerms] = useState(false);
 
+  // Reset Password State
+  const [resetData, setResetData] = useState({
+    email: "",
+    otp: "",
+    newPassword: "",
+    confirmNewPassword: ""
+  });
+
+  // Feedback Modal State
+  const [feedback, setFeedback] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error';
+  }>({ isOpen: false, title: "", message: "", type: "success" });
+
+  const updates = [
+    { category: "Weather Update", text: "Partly Cloudy • 31°C • Chance of rain in the afternoon.", icon: <CloudSun size={16} className="text-orange-500" /> },
+    { category: "Barangay Update", text: "Free Anti-Rabies Vaccination at the Covered Court tomorrow, 8AM-12NN.", icon: <Megaphone size={16} className="text-blue-500" /> },
+    { category: "PHIVOLCS Alert", text: "No active volcano or tsunami threats detected in the region.", icon: <Activity size={16} className="text-red-500" /> },
+    { category: "Fact Check", text: "Verified: No scheduled water interruption for Mambog II this weekend.", icon: <CheckCircle size={16} className="text-emerald-500" /> },
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentUpdateIndex((prev) => (prev + 1) % updates.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLoginData({ ...loginData, [e.target.name]: e.target.value });
   };
 
   const handleRegisterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setRegisterData({ ...registerData, [e.target.name]: e.target.value });
+  };
+
+  const handleResetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setResetData({ ...resetData, [e.target.name]: e.target.value });
   };
 
   const handleAction = async (e: React.FormEvent) => {
@@ -62,42 +102,68 @@ const Login = () => {
           navigate("/home");
         }
       } catch (err: any) {
-        alert(err.response?.data?.msg || "Login Failed");
+        setFeedback({ isOpen: true, title: "Login Failed", message: err.response?.data?.msg || "Invalid credentials.", type: "error" });
       }
     } else if (view === "create") {
       if (!agreeTerms) {
-        alert("You must agree to the Terms and Conditions");
+        setFeedback({ isOpen: true, title: "Terms Required", message: "You must agree to the Terms and Conditions.", type: "error" });
         return;
       }
       if (registerData.password !== registerData.confirmPassword) {
-        alert("Passwords do not match");
+        setFeedback({ isOpen: true, title: "Password Mismatch", message: "Passwords do not match.", type: "error" });
         return;
       }
       if (!/^\d{11}$/.test(registerData.contactNumber)) {
-        alert("Contact number must be exactly 11 digits");
+        setFeedback({ isOpen: true, title: "Invalid Contact", message: "Contact number must be exactly 11 digits.", type: "error" });
         return;
       }
 
       try {
         await axios.post("http://localhost:5000/api/auth/send-otp", { email: registerData.email });
         setShowOtpModal(true);
-        alert("OTP sent to your email!");
+        setFeedback({ isOpen: true, title: "OTP Sent", message: "Please check your email for the verification code.", type: "success" });
       } catch (err: any) {
-        alert(err.response?.data?.msg || "Failed to send OTP");
+        setFeedback({ isOpen: true, title: "Error", message: err.response?.data?.msg || "Failed to send OTP.", type: "error" });
       }
-    } else {
-      alert("Password reset functionality coming soon!");
+    } else if (view === "forgot") {
+      if (!resetData.email) {
+        setFeedback({ isOpen: true, title: "Email Required", message: "Please enter your email address.", type: "error" });
+        return;
+      }
+      try {
+        await axios.post("http://localhost:5000/api/auth/forgot-password", { email: resetData.email });
+        setFeedback({ isOpen: true, title: "OTP Sent", message: "Please check your email for the verification code.", type: "success" });
+        setView("reset");
+      } catch (err: any) {
+        setFeedback({ isOpen: true, title: "Error", message: err.response?.data?.msg || "Failed to send OTP.", type: "error" });
+      }
+    } else if (view === "reset") {
+      if (resetData.newPassword !== resetData.confirmNewPassword) {
+        setFeedback({ isOpen: true, title: "Password Mismatch", message: "Passwords do not match.", type: "error" });
+        return;
+      }
+      try {
+        await axios.post("http://localhost:5000/api/auth/reset-password", {
+          email: resetData.email,
+          otp: resetData.otp,
+          newPassword: resetData.newPassword
+        });
+        setFeedback({ isOpen: true, title: "Success", message: "Password reset successfully! You can now login.", type: "success" });
+        setView("login");
+      } catch (err: any) {
+        setFeedback({ isOpen: true, title: "Reset Failed", message: err.response?.data?.msg || "Failed to reset password.", type: "error" });
+      }
     }
   };
 
   const handleVerifyAndRegister = async () => {
     try {
       await axios.post("http://localhost:5000/api/auth/register", { ...registerData, otp });
-      alert("Registration Successful! You can now login.");
+      setFeedback({ isOpen: true, title: "Welcome!", message: "Registration Successful! You can now login.", type: "success" });
       setShowOtpModal(false);
       setView("login");
     } catch (err: any) {
-      alert(err.response?.data?.msg || "Registration Failed");
+      setFeedback({ isOpen: true, title: "Registration Failed", message: err.response?.data?.msg || "Something went wrong.", type: "error" });
     }
   };
 
@@ -109,8 +175,57 @@ const Login = () => {
   }, [navigate]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6 font-sans">
-      <div className={`flex w-full max-w-6xl items-start gap-12 ${view === "create" ? "lg:flex-row-reverse" : "lg:flex-row"}`}>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-6 font-sans selection:bg-blue-100 selection:text-blue-900">
+      
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 z-0 w-full h-full">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/50" />
+        
+        <motion.div 
+          animate={{ 
+            x: [0, 100, 0],
+            y: [0, -50, 0],
+            rotate: [0, 45, 0]
+          }}
+          transition={{ 
+            duration: 10, 
+            repeat: Infinity, 
+            ease: "easeInOut" 
+          }}
+          className="absolute -top-[10%] -left-[10%] h-[600px] w-[600px] rounded-full bg-blue-200/30 blur-[100px]"
+        />
+
+        <motion.div 
+          animate={{ 
+            x: [0, -80, 0],
+            y: [0, 100, 0],
+            scale: [1, 1.2, 1]
+          }}
+          transition={{ 
+            duration: 25, 
+            repeat: Infinity, 
+            ease: "easeInOut",
+            delay: 2
+          }}
+          className="absolute top-[20%] -right-[10%] h-[500px] w-[500px] rounded-full bg-indigo-200/30 blur-[120px]"
+        />
+
+        <motion.div 
+          animate={{ 
+            x: [0, 60, 0],
+            y: [0, -60, 0],
+          }}
+          transition={{ 
+            duration: 22, 
+            repeat: Infinity, 
+            ease: "easeInOut",
+            delay: 5
+          }}
+          className="absolute -bottom-[20%] left-[20%] h-[700px] w-[700px] rounded-full bg-sky-200/30 blur-[100px]"
+        />
+      </div>
+
+      <div className={`relative z-10 flex w-full max-w-6xl items-start gap-12 ${view === "create" ? "lg:flex-row-reverse" : "lg:flex-row"}`}>
         
         {/* LEFT SIDE: Branding (Hidden on mobile) */}
         <motion.div layout transition={{ type: "spring", stiffness: 100, damping: 20 }} className="hidden flex-1 flex-col gap-6 lg:flex sticky top-20">
@@ -129,10 +244,49 @@ const Login = () => {
           <p className="max-w-md text-lg text-slate-600 leading-relaxed">
             Access barangay services, stay updated with news, and report community issues all in one secure platform.
           </p>
+
+          {/* Live Updates Ticker */}
+          <div className="mt-8 w-full max-w-md">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Live Community Updates</span>
+            </div>
+            
+            <div className="relative h-24 w-full">
+              <motion.div
+                key={currentUpdateIndex}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.5 }}
+                className="absolute inset-0 flex flex-col justify-center rounded-2xl bg-white/50 backdrop-blur-sm border border-white/60 p-5 shadow-sm"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  {updates[currentUpdateIndex].icon}
+                  <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">{updates[currentUpdateIndex].category}</span>
+                </div>
+                <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                  {updates[currentUpdateIndex].text}
+                </p>
+              </motion.div>
+            </div>
+
+            <div className="flex gap-1.5 mt-4 pl-1">
+              {updates.map((_, idx) => (
+                <div 
+                  key={idx} 
+                  className={`h-1 rounded-full transition-all duration-500 ${idx === currentUpdateIndex ? "w-8 bg-blue-600" : "w-2 bg-slate-300"}`}
+                />
+              ))}
+            </div>
+          </div>
         </motion.div>
 
         {/* RIGHT SIDE: Dynamic Card */}
-        <motion.div layout transition={{ type: "spring", stiffness: 100, damping: 20 }} className="w-full max-w-[500px] rounded-[40px] bg-white p-10 shadow-2xl shadow-slate-200 border border-slate-100">
+        <motion.div layout transition={{ type: "spring", stiffness: 100, damping: 20 }} className="w-full max-w-[500px] rounded-[40px] bg-white/80 backdrop-blur-2xl p-10 shadow-2xl shadow-blue-900/5 border border-white/60">
           
           {/* --- LOGIN VIEW --- */}
           {view === "login" && (
@@ -182,10 +336,51 @@ const Login = () => {
                   <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 ml-1">Email Address</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Mail size={18} /></span>
-                    <input type="email" placeholder="your@email.com" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-5 pl-12 text-sm outline-none transition focus:border-blue-500 focus:bg-white" />
+                    <input type="email" required placeholder="your@email.com" name="email" value={resetData.email} onChange={handleResetChange} className="w-full rounded-xl border border-slate-200 bg-slate-50 py-5 pl-12 text-sm outline-none transition focus:border-blue-500 focus:bg-white" />
                   </div>
                 </div>
                 <button type="submit" className="flex items-center justify-center gap-2 rounded-xl bg-[#1e293b] py-5 text-sm font-bold text-white transition hover:bg-slate-800">Get OTP</button>
+              </form>
+            </>
+          )}
+
+          {/* --- RESET PASSWORD VIEW --- */}
+          {view === "reset" && (
+            <>
+              <button onClick={() => setView("forgot")} className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 hover:text-blue-600"><ArrowLeft size={16} /> Back</button>
+              <h3 className="mt-6 text-3xl font-bold text-slate-900">Reset Password</h3>
+              <p className="mt-3 text-slate-500">Enter the OTP sent to your email and your new password.</p>
+              <form className="mt-8 flex flex-col gap-5" onSubmit={handleAction}>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 ml-1">OTP Code</label>
+                  <input type="text" required placeholder="Enter 6-digit OTP" name="otp" value={resetData.otp} onChange={handleResetChange} maxLength={6} className="w-full rounded-xl border border-slate-200 bg-slate-50 py-4 px-4 text-center text-lg font-bold tracking-widest outline-none transition focus:border-blue-500 focus:bg-white" />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 ml-1">New Password</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Lock size={18} /></span>
+                    <input type={showResetPassword ? "text" : "password"} required placeholder="••••••••" name="newPassword" value={resetData.newPassword} onChange={handleResetChange} className="w-full rounded-xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-12 text-sm outline-none transition focus:border-blue-500 focus:bg-white" />
+                    <button type="button" onClick={() => setShowResetPassword(!showResetPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                      {showResetPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 ml-1">Confirm New Password</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Lock size={18} /></span>
+                    <input type={showResetConfirmPassword ? "text" : "password"} required placeholder="••••••••" name="confirmNewPassword" value={resetData.confirmNewPassword} onChange={handleResetChange} className="w-full rounded-xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-12 text-sm outline-none transition focus:border-blue-500 focus:bg-white" />
+                    <button type="button" onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                      {showResetConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                <button type="submit" className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-[#1e293b] py-4 text-sm font-bold text-white transition hover:bg-slate-800">
+                  Reset Password
+                </button>
               </form>
             </>
           )}
@@ -307,6 +502,14 @@ const Login = () => {
           </div>
         </div>
       )}
+
+      <FeedbackModal 
+        isOpen={feedback.isOpen}
+        onClose={() => setFeedback({ ...feedback, isOpen: false })}
+        title={feedback.title}
+        message={feedback.message}
+        type={feedback.type}
+      />
     </div>
   );
 };
